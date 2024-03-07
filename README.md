@@ -30,7 +30,7 @@ You can also check out the live sample app: https://panda-wallet-sample-app.verc
 
 #### Contributing 🙌
 
-If you'd like to contribute to Yours Wallet's development check out [contributing](CONTRIBUTING.md).
+If you'd like to contribute to the development of Yours Wallet, check out [contributing](CONTRIBUTING.md).
 
 ## Issues, Bugs, and Feature Requests
 
