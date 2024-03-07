@@ -320,7 +320,7 @@ export const Settings = () => {
       />
 
       <SettingsRow name="Lock Wallet" description="Immediately lock the wallet" onClick={lockWallet} />
-      <SettingsRow name="Sign Out" description="Sign out of Panda Wallet completely" onClick={handleSignOutIntent} />
+      <SettingsRow name="Sign Out" description="Sign out of Yours Wallet completely" onClick={handleSignOutIntent} />
     </>
   );
 
