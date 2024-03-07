@@ -1,4 +1,4 @@
-const createPandaMethod = (type) => {
+const createYoursMethod = (type) => {
   return async (params) => {
     return new Promise((resolve, reject) => {
       // Send request
@@ -65,28 +65,28 @@ const createPandaEventEmitter = () => {
 const provider = {
   isReady: true,
   ...createPandaEventEmitter(),
-  connect: createPandaMethod('connect'),
-  disconnect: createPandaMethod('disconnect'),
-  isConnected: createPandaMethod('isConnected'),
-  getPubKeys: createPandaMethod('getPubKeys'),
-  getAddresses: createPandaMethod('getAddresses'),
-  getNetwork: createPandaMethod('getNetwork'),
-  getBalance: createPandaMethod('getBalance'),
-  getOrdinals: createPandaMethod('getOrdinals'),
-  sendBsv: createPandaMethod('sendBsv'),
-  transferOrdinal: createPandaMethod('transferOrdinal'),
-  signMessage: createPandaMethod('signMessage'),
-  broadcast: createPandaMethod('broadcast'),
-  getSignatures: createPandaMethod('getSignatures'),
-  getSocialProfile: createPandaMethod('getSocialProfile'),
-  getPaymentUtxos: createPandaMethod('getPaymentUtxos'),
-  getExchangeRate: createPandaMethod('getExchangeRate'),
-  purchaseOrdinal: createPandaMethod('purchaseOrdinal'),
-  generateTaggedKeys: createPandaMethod('generateTaggedKeys'),
-  getTaggedKeys: createPandaMethod('getTaggedKeys'),
-  inscribe: createPandaMethod('sendBsv'),
-  encrypt: createPandaMethod('encrypt'),
-  decrypt: createPandaMethod('decrypt'),
+  connect: createYoursMethod('connect'),
+  disconnect: createYoursMethod('disconnect'),
+  isConnected: createYoursMethod('isConnected'),
+  getPubKeys: createYoursMethod('getPubKeys'),
+  getAddresses: createYoursMethod('getAddresses'),
+  getNetwork: createYoursMethod('getNetwork'),
+  getBalance: createYoursMethod('getBalance'),
+  getOrdinals: createYoursMethod('getOrdinals'),
+  sendBsv: createYoursMethod('sendBsv'),
+  transferOrdinal: createYoursMethod('transferOrdinal'),
+  signMessage: createYoursMethod('signMessage'),
+  broadcast: createYoursMethod('broadcast'),
+  getSignatures: createYoursMethod('getSignatures'),
+  getSocialProfile: createYoursMethod('getSocialProfile'),
+  getPaymentUtxos: createYoursMethod('getPaymentUtxos'),
+  getExchangeRate: createYoursMethod('getExchangeRate'),
+  purchaseOrdinal: createYoursMethod('purchaseOrdinal'),
+  generateTaggedKeys: createYoursMethod('generateTaggedKeys'),
+  getTaggedKeys: createYoursMethod('getTaggedKeys'),
+  inscribe: createYoursMethod('sendBsv'),
+  encrypt: createYoursMethod('encrypt'),
+  decrypt: createYoursMethod('decrypt'),
 };
 
 window.panda = provider;
