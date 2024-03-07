@@ -1,6 +1,6 @@
 /* global chrome */
 
-console.log('🐼 Panda Wallet Loaded');
+console.log('🌱 Yours Wallet Loaded');
 
 const script = document.createElement('script');
 script.src = chrome.runtime.getURL('inject.js');
