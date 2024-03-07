@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import yoursLogo from '../assets/yours-white-logo.svg';
+import yoursLogo from '../assets/yours-logo.png';
 
 const Yoursmg = styled.img<{
   $rotation: { x: number; y: number };
