@@ -24,7 +24,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useWhatsOnChain } from '../hooks/useWhatsOnChain';
 import { ColorThemeProps } from '../theme';
 // import { BSV_DECIMAL_CONVERSION, YOURS_DEV_WALLET, PROVIDER_DOCS_URL, featuredApps } from '../utils/constants';
-import { BSV_DECIMAL_CONVERSION, featuredApps, YOURS_GITHUB_REPOS, PANDA_GITHUB_REPO } from '../utils/constants';
+import { BSV_DECIMAL_CONVERSION, featuredApps, YOURS_GITHUB_REPOS, YOURS_GITHUB_REPO } from '../utils/constants';
 import { truncate } from '../utils/format';
 import { sleep } from '../utils/sleep';
 // import { BsvSendRequest } from './requests/BsvSendRequest';
@@ -272,7 +272,7 @@ export const AppsAndTools = () => {
       <AppsRow
         name="Contribute or integrate"
         description="All the tools you need to get involved"
-        onClick={() => window.open(PANDA_GITHUB_REPO, '_blank')}
+        onClick={() => window.open(YOURS_GITHUB_REPO, '_blank')}
         jsxElement={<ExternalLinkIcon src={externalLink} />}
       />
     </>
