@@ -3,7 +3,7 @@ const createPandaMethod = (type) => {
     return new Promise((resolve, reject) => {
       // Send request
       const messageId = `${type}-${Date.now()}-${Math.random()}`;
-      const requestEvent = new CustomEvent('PandaRequest', {
+      const requestEvent = new CustomEvent('YoursRequest', {
         detail: { messageId, type, params },
       });
       document.dispatchEvent(requestEvent);

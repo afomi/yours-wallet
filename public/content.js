@@ -6,7 +6,7 @@ const script = document.createElement('script');
 script.src = chrome.runtime.getURL('inject.js');
 (document.head || document.documentElement).appendChild(script);
 
-document.addEventListener('PandaRequest', (e) => {
+document.addEventListener('YoursRequest', (e) => {
   if (!e?.detail?.type) return;
   const { type, params: originalParams = {} } = e.detail;
 
