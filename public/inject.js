@@ -24,7 +24,7 @@ const createYoursMethod = (type) => {
   };
 };
 
-const createPandaEventEmitter = () => {
+const createYoursEventEmitter = () => {
   const eventListeners = new Map(); // Object to store event listeners
   const whitelistedEvents = ['signedOut', 'networkChanged']; // Whitelisted event names
 
@@ -64,7 +64,7 @@ const createPandaEventEmitter = () => {
 
 const provider = {
   isReady: true,
-  ...createPandaEventEmitter(),
+  ...createYoursEventEmitter(),
   connect: createYoursMethod('connect'),
   disconnect: createYoursMethod('disconnect'),
   isConnected: createYoursMethod('isConnected'),
