@@ -4,7 +4,7 @@
 
 Version: v3.0.0
 
-<a href="https://chrome.google.com/webstore/detail/panda-wallet/mlbnicldlpdimbjdcncnklfempedeipj" target="_blank">🐼 Download Chrome Extension 🐼</a>
+<a href="https://chrome.google.com/webstore/detail/panda-wallet/mlbnicldlpdimbjdcncnklfempedeipj" target="_blank">🌱 Download Chrome Extension 🌱</a>
 
 # Yours Wallet | Non-Custodial Web3 Wallet For BSV
 
