@@ -253,7 +253,7 @@ export const AppsAndTools = () => {
     <>
       {/* <AppsRow
         name="Make a Difference"
-        description="Fund Panda Wallet's open source developers"
+        description="Fund Yours Wallet's open source developers"
         onClick={() => setPage('sponsor')}
         jsxElement={<RightChevron />}
       /> */}
@@ -265,7 +265,7 @@ export const AppsAndTools = () => {
       />
       <AppsRow
         name="Discover Apps"
-        description="Meet the apps using Panda Wallet"
+        description="Meet the apps using Yours Wallet"
         onClick={() => setPage('discover-apps')}
         jsxElement={<RightChevron />}
       />
@@ -446,7 +446,7 @@ export const AppsAndTools = () => {
   //       </ButtonsWrapper>
   //     </Show>
   //     <Text theme={theme} style={{ width: '95%', margin: '2rem 0 1rem 0' }}>
-  //       Give Monthly through Panda Wallet's transparent Open Collective.
+  //       Give Monthly through Yours Wallet's transparent Open Collective.
   //     </Text>
   //     <Button
   //       theme={theme}
