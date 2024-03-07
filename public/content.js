@@ -40,7 +40,7 @@ const buildResponseCallback = (messageId) => {
 
 chrome.runtime.onMessage.addListener((message) => {
   const { type, action, params } = message;
-  if (type === 'PandaEmitEvent') {
+  if (type === 'YoursEmitEvent') {
     const event = new CustomEvent(type, { detail: { action, params } });
     document.dispatchEvent(event);
   }

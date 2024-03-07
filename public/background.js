@@ -180,7 +180,7 @@ const emitEventToActiveTabs = (message) => {
   const { action, params } = message;
   chrome.tabs.query({ active: true }, function (tabs) {
     tabs.forEach(function (tab) {
-      chrome.tabs.sendMessage(tab.id, { type: 'PandaEmitEvent', action, params });
+      chrome.tabs.sendMessage(tab.id, { type: 'YoursEmitEvent', action, params });
     });
   });
   return true;

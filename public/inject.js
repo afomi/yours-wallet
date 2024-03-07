@@ -92,7 +92,7 @@ const provider = {
 window.panda = provider;
 window.yours = provider;
 
-document.addEventListener('PandaEmitEvent', (event) => {
+document.addEventListener('YoursEmitEvent', (event) => {
   const { action, params } = event.detail;
   // Check if window.panda is defined and has event listeners for the action
   if (window.panda && window.panda.eventListeners && window.panda.eventListeners.has(action)) {
@@ -102,7 +102,7 @@ document.addEventListener('PandaEmitEvent', (event) => {
   }
 });
 
-document.addEventListener('PandaEmitEvent', (event) => {
+document.addEventListener('YoursEmitEvent', (event) => {
   const { action, params } = event.detail;
   // Check if window.yours is defined and has event listeners for the action
   if (window.yours && window.yours.eventListeners && window.yours.eventListeners.has(action)) {
