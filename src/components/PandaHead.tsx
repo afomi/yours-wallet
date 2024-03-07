@@ -15,14 +15,14 @@ interface Rotation {
   y: number;
 }
 
-export type PandaHeadProps = {
+export type YoursHeadProps = {
   /** The size of the head */
   width?: string;
   /** Whether or not the head should follow the mouse */
   animated?: boolean;
 };
 
-export const PandaHead = (props: PandaHeadProps) => {
+export const PandaHead = (props: YoursHeadProps) => {
   const { animated, width } = props;
   const [rotation, setRotation] = useState<Rotation>({ x: 0, y: 0 });
   const imgRef = useRef<HTMLImageElement>(null);
