@@ -212,7 +212,7 @@ export const Settings = () => {
     const url = URL.createObjectURL(blob);
     const tempLink = document.createElement('a');
     tempLink.href = url;
-    tempLink.setAttribute('download', 'panda_wallet_keys.json');
+    tempLink.setAttribute('download', 'yours_wallet_keys.json');
     document.body.appendChild(tempLink);
     tempLink.click();
     document.body.removeChild(tempLink);
