@@ -23,7 +23,7 @@ import { useSnackbar } from '../hooks/useSnackbar';
 import { useTheme } from '../hooks/useTheme';
 import { useWhatsOnChain } from '../hooks/useWhatsOnChain';
 import { ColorThemeProps } from '../theme';
-// import { BSV_DECIMAL_CONVERSION, PANDA_DEV_WALLET, PROVIDER_DOCS_URL, featuredApps } from '../utils/constants';
+// import { BSV_DECIMAL_CONVERSION, YOURS_DEV_WALLET, PROVIDER_DOCS_URL, featuredApps } from '../utils/constants';
 import { BSV_DECIMAL_CONVERSION, featuredApps, YOURS_GITHUB_REPOS, PANDA_GITHUB_REPO } from '../utils/constants';
 import { truncate } from '../utils/format';
 import { sleep } from '../utils/sleep';
@@ -481,7 +481,7 @@ export const AppsAndTools = () => {
       <Show when={page === 'discover-apps'}>{discoverAppsPage}</Show>
       {/* <Show when={page === 'sponsor' && didSubmit}>
         <BsvSendRequest
-          web3Request={[{ address: PANDA_DEV_WALLET, satoshis: satAmount }]}
+          web3Request={[{ address: YOURS_DEV_WALLET, satoshis: satAmount }]}
           popupId={undefined}
           onResponse={() => {
             setDidSubmit(false);
