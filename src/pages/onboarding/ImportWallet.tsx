@@ -79,7 +79,7 @@ export const ImportWallet = () => {
       if (!identityPk) {
         setLoading(false);
         addSnackbar(
-          'IMPORTANT: Since you did not provide an identity key, Panda Wallet will generate one for you, MAKE SURE TO BACK UP YOUR NEW PANDA WALLET!',
+          'IMPORTANT: Since you did not provide an identity key, Yours Wallet will generate one for you, MAKE SURE TO BACK UP YOUR NEW YOURS WALLET!',
           'info',
           7000,
         );
