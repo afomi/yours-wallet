@@ -22,7 +22,7 @@ export type YoursHeadProps = {
   animated?: boolean;
 };
 
-export const PandaHead = (props: YoursHeadProps) => {
+export const YoursHead = (props: YoursHeadProps) => {
   const { animated, width } = props;
   const [rotation, setRotation] = useState<Rotation>({ x: 0, y: 0 });
   const imgRef = useRef<HTMLImageElement>(null);
