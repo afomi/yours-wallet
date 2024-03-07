@@ -42,8 +42,8 @@ If you'd like to contribute to Yours Wallet's development check out [contributin
 
 ## Contact Us
 
-[X](https://twitter.com/yoursxbt) - @yoursxbt
-[Discord](https://discord.gg/qHs6hTkmsf)
+* [@yoursxbt on X](https://twitter.com/yoursxbt)
+* [Discord](https://discord.gg/qHs6hTkmsf)
 
 ## License
 
