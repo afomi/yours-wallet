@@ -646,7 +646,7 @@ const processGetTaggedKeys = async (message, sendResponse) => {
           sendResponse({
             type: 'getTaggedKeys',
             success: false,
-            error: 'Unauthorized! Panda is locked.',
+            error: 'Unauthorized! Yours Wallet is locked.',
           });
         }
 
