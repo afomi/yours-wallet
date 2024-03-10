@@ -583,7 +583,7 @@ const processGetSignaturesRequest = (message, sendResponse) => {
 };
 
 const processGetSocialProfileRequest = (sendResponse) => {
-  const HOSTED_YOURS_IMAGE = 'https://i.ibb.co/3fLL5X2/Panda-Wallet-Logo.png';
+  const HOSTED_YOURS_IMAGE = 'https://i.ibb.co/zGcthBv/yours-org-light.png';
   try {
     chrome.storage.local.get(['socialProfile'], (result) => {
       const displayName = result?.socialProfile?.displayName ? result.socialProfile.displayName : 'Anon Panda';
