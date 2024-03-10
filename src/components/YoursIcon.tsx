@@ -15,14 +15,14 @@ interface Rotation {
   y: number;
 }
 
-export type YoursHeadProps = {
+export type YoursIconProps = {
   /** The size of the head */
   width?: string;
   /** Whether or not the head should follow the mouse */
   animated?: boolean;
 };
 
-export const YoursHead = (props: YoursHeadProps) => {
+export const YoursIcon = (props: YoursIconProps) => {
   const { animated, width } = props;
   const [rotation, setRotation] = useState<Rotation>({ x: 0, y: 0 });
   const imgRef = useRef<HTMLImageElement>(null);

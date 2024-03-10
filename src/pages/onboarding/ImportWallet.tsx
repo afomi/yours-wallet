@@ -5,7 +5,7 @@ import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { PageLoader } from '../../components/PageLoader';
-import { YoursHead } from '../../components/YoursHead';
+import { YoursIcon } from '../../components/YoursIcon';
 import { HeaderText, Text } from '../../components/Reusable';
 import { Show } from '../../components/Show';
 import { useBottomMenu } from '../../hooks/useBottomMenu';
@@ -236,7 +236,7 @@ export const ImportWallet = () => {
   const successStep = (
     <>
       <Content>
-        <YoursHead />
+        <YoursIcon />
         <HeaderText theme={theme}>Success!</HeaderText>
         <Text theme={theme} style={{ marginBottom: '1rem' }}>
           Your wallet has been imported.
