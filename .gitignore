@@ -30,3 +30,9 @@ yarn-error.log*
 
 # build metadata
 scripts/.build-meta.json
+
+# puppeteer debug profile + wallet secrets (do not commit)
+.puppeteer-profile/
+.puppeteer-profile-clean/
+.debug-wallet.json
+.debug-session.log
