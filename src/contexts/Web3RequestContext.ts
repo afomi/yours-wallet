@@ -5,7 +5,7 @@ import type {
   PermissionRequest,
   GroupedPermissionRequest,
   CounterpartyPermissionRequest,
-} from '@bsv/wallet-toolbox-mobile';
+} from '@bsv/wallet-toolbox-client';
 import type { ApprovalContext } from '../yoursApi';
 import type { OneSatPromptStorageEntry } from '../services/oneSatPrompt';
 

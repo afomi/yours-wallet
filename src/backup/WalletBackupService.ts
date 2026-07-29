@@ -6,7 +6,7 @@ import {
   type BackupProgressCallback,
 } from '@1sat/wallet-browser';
 import { encode } from '@msgpack/msgpack';
-import type { WalletStorageManager, sdk } from '@bsv/wallet-toolbox-mobile';
+import type { WalletStorageManager, sdk } from '@bsv/wallet-toolbox-client';
 import type { ChromeStorageService } from '../services/ChromeStorage.service';
 import type { Account } from '../services/types/chromeStorage.types';
 import type { Theme } from '../theme.types';

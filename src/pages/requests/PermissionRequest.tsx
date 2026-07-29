@@ -6,7 +6,7 @@ import { useBottomMenu } from '../../hooks/useBottomMenu';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useTheme } from '../../hooks/useTheme';
 import { sendMessage, removeWindow } from '../../utils/chromeHelpers';
-import type { PermissionRequest as PermissionRequestType } from '@bsv/wallet-toolbox-mobile';
+import type { PermissionRequest as PermissionRequestType } from '@bsv/wallet-toolbox-client';
 
 export type PermissionRequestProps = {
   request: PermissionRequestType & { requestID: string };

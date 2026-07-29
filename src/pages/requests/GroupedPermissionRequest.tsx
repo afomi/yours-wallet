@@ -9,7 +9,7 @@ import { sendMessage, removeWindow } from '../../utils/chromeHelpers';
 import type {
   GroupedPermissionRequest as GroupedPermissionRequestType,
   GroupedPermissions,
-} from '@bsv/wallet-toolbox-mobile';
+} from '@bsv/wallet-toolbox-client';
 
 export type GroupedPermissionRequestProps = {
   request: GroupedPermissionRequestType;

@@ -33,7 +33,7 @@ import type {
   GroupedPermissions,
   CounterpartyPermissionRequest,
   CounterpartyPermissions,
-} from '@bsv/wallet-toolbox-mobile';
+} from '@bsv/wallet-toolbox-client';
 import type { LocalWalletPermissionsManager } from '@1sat/wallet-browser';
 import { deriveDepositAddresses } from '@1sat/actions';
 import { removeWindow } from './utils/chromeHelpers';
@@ -860,7 +860,7 @@ if (isInServiceWorker) {
               const am = accountContext.syncContext.addressManager;
               const newIndex = am.getMaxKeyIndex() + 1;
               const { derivations } = await deriveDepositAddresses.execute(
-                { wallet: accountContext.baseWallet, chain: 'main' },
+                { wallet: accountContext.baseWallet, chain: 'main', isBaseWallet: true },
                 { startIndex: newIndex, count: 1 },
               );
               const newDerivation = derivations[0];
