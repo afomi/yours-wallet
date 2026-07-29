@@ -156,6 +156,32 @@ const Section = ({ title, children }: SectionProps) => (
   </motion.div>
 );
 
+type IdentifierRowProps = {
+  label: string;
+  value: string;
+  copied: boolean;
+  onCopy: () => void;
+};
+
+const IdentifierRow = ({ label, value, copied, onCopy }: IdentifierRowProps) => (
+  <motion.div
+    variants={rowVariant}
+    onClick={onCopy}
+    className="w-full cursor-pointer pt-1"
+    title={`Copy ${label}`}
+  >
+    <div className="flex items-center justify-center gap-1.5">
+      <span className="text-[9px] uppercase tracking-wider" style={{ color: '#475467' }}>
+        {label}
+      </span>
+      <span className="text-[10px] font-mono" style={{ color: '#475467' }}>
+        {value.length > 40 ? `${value.slice(0, 12)}...${value.slice(-8)}` : value}
+      </span>
+      {copied ? <Check size={10} style={{ color: '#34D399' }} /> : <Copy size={10} style={{ color: '#475467' }} />}
+    </div>
+  </motion.div>
+);
+
 type SubPageHeaderProps = {
   title: string;
   onBack: () => void;
@@ -204,6 +230,8 @@ export const Settings = () => {
   const [enteredAccountName, setEnteredAccountName] = useState('');
   const [enteredAccountIcon, setEnteredAccountIcon] = useState('');
   const [copiedBapId, setCopiedBapId] = useState(false);
+  const [copiedIdentityKey, setCopiedIdentityKey] = useState(false);
+  const [identityPubKey, setIdentityPubKey] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [pendingAvatar, setPendingAvatar] = useState<{ base64: string; mimeType: string; byteSize: number } | null>(
@@ -231,6 +259,16 @@ export const Settings = () => {
     else if (query === 'restore-account') setPage('restore-account');
     else if (query === 'storage') setPage('storage');
   }, [query]);
+
+  // Identity key comes from the wallet itself, not cached storage. The popup's
+  // ChromeCWI sends the admin originator, so this bypasses permission prompts.
+  useEffect(() => {
+    if (page !== 'identity' || identityPubKey) return;
+    apiContext.wallet
+      .getPublicKey({ identityKey: true })
+      .then(({ publicKey }) => setIdentityPubKey(publicKey))
+      .catch(() => setIdentityPubKey(''));
+  }, [page, identityPubKey, apiContext]);
 
   const handleDeleteAccountIntent = () => {
     setDecisionType('delete-account');
@@ -338,6 +376,13 @@ export const Settings = () => {
     navigator.clipboard.writeText(identity.bapId);
     setCopiedBapId(true);
     setTimeout(() => setCopiedBapId(false), 2000);
+  };
+
+  const handleCopyIdentityKey = () => {
+    if (!identityPubKey) return;
+    navigator.clipboard.writeText(identityPubKey);
+    setCopiedIdentityKey(true);
+    setTimeout(() => setCopiedIdentityKey(false), 2000);
   };
 
   const handleAccountEditSave = async () => {
@@ -875,7 +920,7 @@ export const Settings = () => {
       initial="initial"
       animate="animate"
       exit="exit"
-      className="w-full px-4 pb-4"
+      className="w-full px-4 pb-24"
     >
       <SubPageHeader title="Identity" onBack={() => setPage('main')} />
 
@@ -977,24 +1022,22 @@ export const Settings = () => {
             </p>
           </motion.div>
 
-          {/* BAP ID — small footer for published identities */}
           {identity.bapId && identity.isPublished && (
-            <motion.div variants={rowVariant} className="flex items-center justify-center gap-1.5 pt-1">
-              <Fingerprint size={10} style={{ color: '#475467' }} />
-              <span
-                className="text-[10px] font-mono cursor-pointer"
-                style={{ color: '#475467' }}
-                onClick={handleCopyBapId}
-                title="Copy BAP ID"
-              >
-                {identity.bapId.slice(0, 10)}...{identity.bapId.slice(-6)}
-              </span>
-              {copiedBapId ? (
-                <Check size={10} style={{ color: '#34D399' }} />
-              ) : (
-                <Copy size={10} style={{ color: '#475467' }} />
-              )}
-            </motion.div>
+            <IdentifierRow
+              label="BAP ID"
+              value={identity.bapId}
+              copied={copiedBapId}
+              onCopy={handleCopyBapId}
+            />
+          )}
+
+          {identityPubKey && (
+            <IdentifierRow
+              label="Identity Key"
+              value={identityPubKey}
+              copied={copiedIdentityKey}
+              onCopy={handleCopyIdentityKey}
+            />
           )}
         </motion.div>
       )}

@@ -80,17 +80,20 @@ const notifyBalanceUpdate = () => {
     });
 };
 
+// Drop live context immediately; destroy in background (never block lock on hung close).
+const dropWalletContext = (reason: string) => {
+  const ctx = accountContext;
+  accountContext = null;
+  if (!ctx) return;
+  console.log(`[background] dropWalletContext (${reason}): gone immediately`);
+  void ctx.close().catch((err) => console.error(`[background] close after ${reason}:`, err));
+};
+
 // Initialize wallet on startup (will be null if locked)
 const initializeWallet = async (): Promise<WalletInterface | null> => {
   console.log('[background] initializeWallet: starting, current accountContext:', !!accountContext);
   if (accountContext) {
-    console.log('[background] initializeWallet: closing existing context');
-    try {
-      await accountContext.close();
-    } catch (error) {
-      console.error('[background] initializeWallet: failed to close existing context (continuing anyway):', error);
-    }
-    accountContext = null;
+    dropWalletContext('before-init');
   }
 
   console.log('[background] initializeWallet: calling initWallet...');
@@ -286,6 +289,58 @@ const pendingCounterpartyPermissionRequests = new Map<
 
 let popupWindowId: number | undefined;
 
+// In-flight dApp CWI requests that may have opened (or reused) the floating popup.
+let inFlightDappRequests = 0;
+
+const DAPP_UI_STORAGE_KEYS = [
+  'permissionRequest',
+  'groupedPermissionRequest',
+  'counterpartyPermissionRequest',
+  'oneSatPermissionRequest',
+  'transactionApprovalRequest',
+  'sendMNEERequest',
+] as const;
+
+const hasQueuedDappUi = async (): Promise<boolean> => {
+  if (pendingPermissionRequests.size > 0) return true;
+  if (pendingGroupedPermissionRequests.size > 0) return true;
+  if (pendingCounterpartyPermissionRequests.size > 0) return true;
+  const storage = await chromeStorageService.getAndSetStorage();
+  const s = storage as Record<string, unknown>;
+  return DAPP_UI_STORAGE_KEYS.some((key) => !!s[key]);
+};
+
+const closeDappPopup = (): void => {
+  if (!popupWindowId) return;
+  removeWindow(popupWindowId);
+  popupWindowId = undefined;
+  chrome.storage.local.remove('popupWindowId');
+};
+
+/**
+ * Close the floating dApp popup when no permission/approval UI is queued.
+ * Ignores in-flight CWI work so unlock and permission screens dismiss as
+ * soon as their UI is done; a later prompt reopens via launchPopUp.
+ * Never touches the browser-action popup (activePopupPorts).
+ */
+const closeDappPopupIfNoUi = async (): Promise<void> => {
+  if (!popupWindowId) return;
+  if (await hasQueuedDappUi()) return;
+  closeDappPopup();
+};
+
+/**
+ * Close the floating dApp popup only when fully idle: no queued UI, no
+ * unlock waiters, and no in-flight dApp CWI requests.
+ */
+const closeDappPopupIfIdle = async (): Promise<void> => {
+  if (!popupWindowId) return;
+  if (inFlightDappRequests > 0) return;
+  if (pendingWalletWaiters.length > 0) return;
+  if (await hasQueuedDappUi()) return;
+  closeDappPopup();
+};
+
 /** Read the user's configured lock timeout (defaults to 10 minutes). */
 const getInactivityLimit = () => chromeStorageService.getLockTimeout();
 
@@ -297,13 +352,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   await chromeStorageService.getAndSetStorage();
   const { lastActiveTime } = chromeStorageService.getCurrentAccountObject();
   if (!lastActiveTime || Date.now() - Number(lastActiveTime) >= getInactivityLimit()) {
-    console.log('[background] Inactivity detected — destroying wallet context and clearing passKey');
-    try {
-      await accountContext.close();
-    } catch (err) {
-      console.error('[background] Error closing wallet on inactivity:', err);
-    }
-    accountContext = null;
+    console.log('[background] Inactivity detected — wallet gone, clearing passKey');
+    dropWalletContext('inactivity');
     await chromeStorageService.clearPassKey();
     await chromeStorageService.update({ isLocked: true });
   }
@@ -431,8 +481,7 @@ if (isInServiceWorker) {
   };
 
   const signOut = async () => {
-    await accountContext?.close();
-    accountContext = null;
+    dropWalletContext('signOut');
     await chromeStorageService.clearPassKey();
     await deleteAllIDBDatabases();
   };
@@ -441,12 +490,7 @@ if (isInServiceWorker) {
     console.log('[background] switchAccount: starting');
     const doSwitch = async () => {
       try {
-        // Close existing wallet before switching
-        if (accountContext) {
-          console.log('[background] switchAccount: closing existing wallet');
-          await accountContext.close();
-          accountContext = null;
-        }
+        dropWalletContext('switchAccount');
         chromeStorageService = new ChromeStorageService();
         await chromeStorageService.getAndSetStorage();
         console.log('[background] switchAccount: storage loaded, initializing wallet');
@@ -644,7 +688,7 @@ if (isInServiceWorker) {
           sendResponse({
             type: CWIEventName.GET_VERSION,
             success: true,
-            data: { version: 'yours-wallet-1.0.0' },
+            data: { version: `yours-wallet-${chrome.runtime.getManifest().version}` },
           });
           return true;
         // Permission responses from popup UI
@@ -681,19 +725,10 @@ if (isInServiceWorker) {
           processGetSocialProfileRequest(sendResponse);
           return true;
         case 'WALLET_LOCKED': {
-          // Destroy accountContext and clear passKey so keys cannot be decrypted without password
-          const ctx = accountContext;
-          accountContext = null; // Clear reference immediately to block new callers
+          // Gone immediately so lock never waits on hung AuthFetch/storage close.
+          dropWalletContext('WALLET_LOCKED');
           chromeStorageService.clearPassKey().catch(() => {});
-          if (ctx) {
-            ctx
-              .close()
-              .then(() => console.log('[background] Wallet locked — keys and passKey cleared'))
-              .catch((err) => console.error('[background] Error closing wallet on lock:', err))
-              .finally(() => sendResponse({ type: 'WALLET_LOCKED', success: true }));
-          } else {
-            sendResponse({ type: 'WALLET_LOCKED', success: true });
-          }
+          sendResponse({ type: 'WALLET_LOCKED', success: true });
           return true;
         }
         case 'WALLET_UNLOCKED':
@@ -717,27 +752,17 @@ if (isInServiceWorker) {
 
                 sendResponse({ type: 'WALLET_UNLOCKED', success: !!wallet });
 
-                const hadWaiters = pendingWalletWaiters.length > 0;
                 // Resolve any CWI handlers waiting for the wallet
-                if (wallet && hadWaiters) {
+                if (wallet && pendingWalletWaiters.length > 0) {
                   for (const waiter of pendingWalletWaiters.splice(0)) {
                     waiter.resolve(wallet);
                   }
                 }
-                // Don't close the popup if there's a pending permission request in
-                // storage or if CWI handlers were waiting — the popup needs to
-                // transition from the unlock screen to the permission screen.
-                const storage = await chromeStorageService.getAndSetStorage();
-                const hasPendingRequest =
-                  hadWaiters ||
-                  !!(storage as Record<string, unknown>)?.permissionRequest ||
-                  !!(storage as Record<string, unknown>)?.groupedPermissionRequest ||
-                  !!(storage as Record<string, unknown>)?.counterpartyPermissionRequest;
-                if (!hasPendingRequest && popupWindowId) {
-                  removeWindow(popupWindowId);
-                  popupWindowId = undefined;
-                  chrome.storage.local.remove('popupWindowId');
-                }
+                // Close the unlock popup only once fully idle: in-flight dApp
+                // calls resumed by this unlock may still raise an approval
+                // screen in this window; silent calls close it via their
+                // completion hook moments later.
+                await closeDappPopupIfIdle();
               })
               .catch((error: Error) => {
                 console.error('Failed to initialize wallet:', error);
@@ -889,6 +914,23 @@ if (isInServiceWorker) {
       // because suppressPopup flag is set for this call).
     }
 
+    // Track dApp CWI work so the floating popup closes when the request is
+    // done and no approval UI remains. Extension-internal callers skip this —
+    // they use suppressPopup and must not own popupWindowId lifecycle.
+    const runDappRequest = (work: Promise<unknown>) => {
+      if (isFromExtension) {
+        void work;
+        return;
+      }
+      inFlightDappRequests++;
+      void Promise.resolve(work)
+        .catch(() => {})
+        .finally(() => {
+          inFlightDappRequests--;
+          void closeDappPopupIfIdle();
+        });
+    };
+
     ensureWallet(isFromExtension)
       .then(() => {
         console.log('[background] ensureWallet resolved for action:', message.action);
@@ -896,85 +938,82 @@ if (isInServiceWorker) {
           // CWI (BRC-100) handlers - direct passthrough to wallet
           // WalletPermissionsManager handles permission prompts internally
           case CWIEventName.WAIT_FOR_AUTHENTICATION:
-            processCWIWaitForAuthentication(message, sendResponse);
+            runDappRequest(processCWIWaitForAuthentication(message, sendResponse));
             return true;
           case CWIEventName.LIST_OUTPUTS:
-            processCWIListOutputs(message, sendResponse);
+            runDappRequest(processCWIListOutputs(message, sendResponse));
             return true;
           case CWIEventName.GET_NETWORK:
-            processCWIGetNetwork(message, sendResponse);
+            runDappRequest(processCWIGetNetwork(message, sendResponse));
             return true;
           case CWIEventName.GET_HEIGHT:
-            processCWIGetHeight(message, sendResponse);
+            runDappRequest(processCWIGetHeight(message, sendResponse));
             return true;
           case CWIEventName.GET_HEADER_FOR_HEIGHT:
-            processCWIGetHeaderForHeight(message, sendResponse);
-            return true;
-          case CWIEventName.GET_VERSION:
-            processCWIGetVersion(sendResponse);
+            runDappRequest(processCWIGetHeaderForHeight(message, sendResponse));
             return true;
           case CWIEventName.GET_PUBLIC_KEY:
-            processCWIGetPublicKey(message, sendResponse);
+            runDappRequest(processCWIGetPublicKey(message, sendResponse));
             return true;
           case CWIEventName.LIST_ACTIONS:
-            processCWIListActions(message, sendResponse);
+            runDappRequest(processCWIListActions(message, sendResponse));
             return true;
           case CWIEventName.VERIFY_SIGNATURE:
-            processCWIVerifySignature(message, sendResponse);
+            runDappRequest(processCWIVerifySignature(message, sendResponse));
             return true;
           case CWIEventName.VERIFY_HMAC:
-            processCWIVerifyHmac(message, sendResponse);
+            runDappRequest(processCWIVerifyHmac(message, sendResponse));
             return true;
           case CWIEventName.CREATE_HMAC:
-            processCWICreateHmac(message, sendResponse);
+            runDappRequest(processCWICreateHmac(message, sendResponse));
             return true;
           case CWIEventName.CREATE_SIGNATURE:
-            processCWICreateSignature(message, sendResponse);
+            runDappRequest(processCWICreateSignature(message, sendResponse));
             return true;
           case CWIEventName.ENCRYPT:
-            processCWIEncrypt(message, sendResponse);
+            runDappRequest(processCWIEncrypt(message, sendResponse));
             return true;
           case CWIEventName.DECRYPT:
-            processCWIDecrypt(message, sendResponse);
+            runDappRequest(processCWIDecrypt(message, sendResponse));
             return true;
           case CWIEventName.CREATE_ACTION:
-            processCWICreateAction(message, sendResponse);
+            runDappRequest(processCWICreateAction(message, sendResponse));
             return true;
           case CWIEventName.SIGN_ACTION:
-            processCWISignAction(message, sendResponse);
+            runDappRequest(processCWISignAction(message, sendResponse));
             return true;
           case CWIEventName.ABORT_ACTION:
-            processCWIAbortAction(message, sendResponse);
+            runDappRequest(processCWIAbortAction(message, sendResponse));
             return true;
           case CWIEventName.INTERNALIZE_ACTION:
-            processCWIInternalizeAction(message, sendResponse);
+            runDappRequest(processCWIInternalizeAction(message, sendResponse));
             return true;
           case CWIEventName.RELINQUISH_OUTPUT:
-            processCWIRelinquishOutput(message, sendResponse);
+            runDappRequest(processCWIRelinquishOutput(message, sendResponse));
             return true;
           case CWIEventName.REVEAL_COUNTERPARTY_KEY_LINKAGE:
-            processCWIRevealCounterpartyKeyLinkage(message, sendResponse);
+            runDappRequest(processCWIRevealCounterpartyKeyLinkage(message, sendResponse));
             return true;
           case CWIEventName.REVEAL_SPECIFIC_KEY_LINKAGE:
-            processCWIRevealSpecificKeyLinkage(message, sendResponse);
+            runDappRequest(processCWIRevealSpecificKeyLinkage(message, sendResponse));
             return true;
           case CWIEventName.ACQUIRE_CERTIFICATE:
-            processCWIAcquireCertificate(message, sendResponse);
+            runDappRequest(processCWIAcquireCertificate(message, sendResponse));
             return true;
           case CWIEventName.LIST_CERTIFICATES:
-            processCWIListCertificates(message, sendResponse);
+            runDappRequest(processCWIListCertificates(message, sendResponse));
             return true;
           case CWIEventName.PROVE_CERTIFICATE:
-            processCWIProveCertificate(message, sendResponse);
+            runDappRequest(processCWIProveCertificate(message, sendResponse));
             return true;
           case CWIEventName.RELINQUISH_CERTIFICATE:
-            processCWIRelinquishCertificate(message, sendResponse);
+            runDappRequest(processCWIRelinquishCertificate(message, sendResponse));
             return true;
           case CWIEventName.DISCOVER_BY_IDENTITY_KEY:
-            processCWIDiscoverByIdentityKey(message, sendResponse);
+            runDappRequest(processCWIDiscoverByIdentityKey(message, sendResponse));
             return true;
           case CWIEventName.DISCOVER_BY_ATTRIBUTES:
-            processCWIDiscoverByAttributes(message, sendResponse);
+            runDappRequest(processCWIDiscoverByAttributes(message, sendResponse));
             return true;
 
           default:
@@ -987,6 +1026,7 @@ if (isInServiceWorker) {
           success: false,
           error: error.message || 'Wallet unavailable',
         });
+        if (!isFromExtension) void closeDappPopupIfIdle();
       });
 
     return true;
@@ -996,7 +1036,7 @@ if (isInServiceWorker) {
 
   const processStorageGetInfo = async (sendResponse: CallbackResponse) => {
     try {
-      await ensureWallet();
+      await ensureWallet(true);
     } catch (err) {
       sendResponse({
         type: 'STORAGE_GET_INFO',
@@ -1090,7 +1130,7 @@ if (isInServiceWorker) {
 
   const processStorageSyncBackups = async (sendResponse: CallbackResponse) => {
     try {
-      await ensureWallet();
+      await ensureWallet(true);
     } catch (err) {
       sendResponse({
         type: 'STORAGE_SYNC_BACKUPS',
@@ -1132,7 +1172,7 @@ if (isInServiceWorker) {
 
   const processStorageSetActiveStorage = async (target: 'local' | string, sendResponse: CallbackResponse) => {
     try {
-      await ensureWallet();
+      await ensureWallet(true);
     } catch (err) {
       sendResponse({
         type: 'STORAGE_SET_ACTIVE_STORAGE',
@@ -1175,7 +1215,7 @@ if (isInServiceWorker) {
 
   const processStorageAddRemote = async (url: string, sendResponse: CallbackResponse) => {
     try {
-      await ensureWallet();
+      await ensureWallet(true);
     } catch (err) {
       sendResponse({
         type: 'STORAGE_ADD_REMOTE',
@@ -1253,7 +1293,7 @@ if (isInServiceWorker) {
 
   const processPermissionsListAll = async (sendResponse: CallbackResponse) => {
     try {
-      const wpm = (await ensureWallet()) as LocalWalletPermissionsManager;
+      const wpm = (await ensureWallet(true)) as LocalWalletPermissionsManager;
 
       const [protocols, baskets, spending, certificates] = await Promise.all([
         wpm.listProtocolPermissions({}),
@@ -1296,7 +1336,7 @@ if (isInServiceWorker) {
 
   const processPermissionsQuerySpent = async (message: { token: PermissionToken }, sendResponse: CallbackResponse) => {
     try {
-      const wpm = (await ensureWallet()) as LocalWalletPermissionsManager;
+      const wpm = (await ensureWallet(true)) as LocalWalletPermissionsManager;
       const satoshisSpent = await wpm.querySpentSince(message.token);
       sendResponse({ type: 'PERMISSIONS_QUERY_SPENT', success: true, data: { satoshisSpent } });
     } catch (error) {
@@ -1311,7 +1351,7 @@ if (isInServiceWorker) {
 
   const processPermissionsRevokeOne = async (message: { token: PermissionToken }, sendResponse: CallbackResponse) => {
     try {
-      const wpm = (await ensureWallet()) as LocalWalletPermissionsManager;
+      const wpm = (await ensureWallet(true)) as LocalWalletPermissionsManager;
       await wpm.revokePermission(message.token);
       sendResponse({ type: 'PERMISSIONS_REVOKE_ONE', success: true });
     } catch (error) {
@@ -1326,7 +1366,7 @@ if (isInServiceWorker) {
 
   const processPermissionsRevokeAll = async (message: { originator: string }, sendResponse: CallbackResponse) => {
     try {
-      const wpm = (await ensureWallet()) as LocalWalletPermissionsManager;
+      const wpm = (await ensureWallet(true)) as LocalWalletPermissionsManager;
       const revoked = await wpm.revokeAllForOriginator(message.originator);
       sendResponse({ type: 'PERMISSIONS_REVOKE_ALL', success: true, data: { revokedCount: revoked.length } });
     } catch (error) {
@@ -1377,7 +1417,7 @@ if (isInServiceWorker) {
     }
 
     chromeStorageService.remove('permissionRequest');
-    closePermissionPopup();
+    void closeDappPopupIfNoUi();
     return true;
   };
 
@@ -1419,7 +1459,7 @@ if (isInServiceWorker) {
     }
 
     chromeStorageService.remove('groupedPermissionRequest');
-    closePermissionPopup();
+    void closeDappPopupIfNoUi();
     return true;
   };
 
@@ -1461,7 +1501,7 @@ if (isInServiceWorker) {
     }
 
     chromeStorageService.remove('counterpartyPermissionRequest');
-    closePermissionPopup();
+    void closeDappPopupIfNoUi();
     return true;
   };
 
@@ -1469,7 +1509,7 @@ if (isInServiceWorker) {
 
   const processGetBalanceRequest = async (sendResponse: CallbackResponse) => {
     try {
-      await ensureWallet();
+      await ensureWallet(true);
     } catch (err) {
       sendResponse({
         type: YoursEventName.GET_BALANCE,
@@ -1544,34 +1584,41 @@ if (isInServiceWorker) {
     }
   };
 
-  const processGetReceiveAddressRequest = (sendResponse: CallbackResponse) => {
-    // Wait for startup initialization to complete before checking accountContext
-    startupInitPromise.then(() => {
-      try {
-        if (!accountContext) {
-          sendResponse({
-            type: YoursEventName.GET_RECEIVE_ADDRESS,
-            success: false,
-            error: 'Wallet not initialized',
-          });
-          return;
-        }
-        // Prefer the user's selected primaryAddress from storage; fall back to index 0.
-        const { account } = chromeStorageService.getCurrentAccountObject();
-        const address = account?.primaryAddress ?? accountContext.syncContext.addressManager.getPrimaryAddress();
-        sendResponse({
-          type: YoursEventName.GET_RECEIVE_ADDRESS,
-          success: true,
-          data: address,
-        });
-      } catch (error) {
+  const processGetReceiveAddressRequest = async (sendResponse: CallbackResponse) => {
+    try {
+      await ensureWallet(true);
+    } catch (err) {
+      sendResponse({
+        type: YoursEventName.GET_RECEIVE_ADDRESS,
+        success: false,
+        error: err instanceof Error ? err.message : 'Wallet not available',
+      });
+      return;
+    }
+    try {
+      if (!accountContext) {
         sendResponse({
           type: YoursEventName.GET_RECEIVE_ADDRESS,
           success: false,
-          error: error instanceof Error ? error.message : JSON.stringify(error),
+          error: 'Wallet not initialized',
         });
+        return;
       }
-    });
+      // Prefer the user's selected primaryAddress from storage; fall back to index 0.
+      const { account } = chromeStorageService.getCurrentAccountObject();
+      const address = account?.primaryAddress ?? accountContext.syncContext.addressManager.getPrimaryAddress();
+      sendResponse({
+        type: YoursEventName.GET_RECEIVE_ADDRESS,
+        success: true,
+        data: address,
+      });
+    } catch (error) {
+      sendResponse({
+        type: YoursEventName.GET_RECEIVE_ADDRESS,
+        success: false,
+        error: error instanceof Error ? error.message : JSON.stringify(error),
+      });
+    }
   };
 
   const processGetSocialProfileRequest = (sendResponse: CallbackResponse) => {
@@ -1600,11 +1647,9 @@ if (isInServiceWorker) {
 
   const processMasterBackup = async (sendResponse: CallbackResponse) => {
     try {
-      // Service worker may have slept — ensure the wallet is (re)initialized before
-      // accessing accountContext. ensureWallet() silently re-initializes if the wallet
-      // is unlocked, or launches the unlock popup if it isn't.
+      // Extension-internal: fail closed if locked (no unlock popup).
       try {
-        await ensureWallet();
+        await ensureWallet(true);
       } catch (err) {
         sendResponse({
           type: 'MASTER_BACKUP',
@@ -1940,26 +1985,6 @@ if (isInServiceWorker) {
     return true;
   };
 
-  const processCWIGetVersion = async (sendResponse: CallbackResponse) => {
-    try {
-      const w = await ensureWallet();
-
-      const result = await w.getVersion({});
-      sendResponse({
-        type: CWIEventName.GET_VERSION,
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      sendResponse({
-        type: CWIEventName.GET_VERSION,
-        success: false,
-        error: error instanceof Error ? error.message : JSON.stringify(error),
-      });
-    }
-    return true;
-  };
-
   const processCWIGetPublicKey = async (
     message: { params: GetPublicKeyArgs; originator?: string },
     sendResponse: CallbackResponse,
@@ -2170,14 +2195,6 @@ if (isInServiceWorker) {
     return true;
   };
 
-  const closePermissionPopup = () => {
-    if (popupWindowId) {
-      removeWindow(popupWindowId);
-      popupWindowId = undefined;
-      chromeStorageService.remove('popupWindowId');
-    }
-  };
-
   const processCWICreateAction = async (
     message: { params: CreateActionArgs; originator?: string },
     sendResponse: CallbackResponse,
@@ -2218,7 +2235,6 @@ if (isInServiceWorker) {
         error: errorMessage,
       });
     }
-    closePermissionPopup();
     return true;
   };
 
@@ -2251,7 +2267,6 @@ if (isInServiceWorker) {
         error: error instanceof Error ? error.message : JSON.stringify(error),
       });
     }
-    closePermissionPopup();
     return true;
   };
 
