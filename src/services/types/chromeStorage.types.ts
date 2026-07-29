@@ -14,7 +14,7 @@ import type {
   PermissionRequest,
   GroupedPermissionRequest,
   CounterpartyPermissionRequest,
-} from '@bsv/wallet-toolbox-mobile';
+} from '@bsv/wallet-toolbox-client';
 import { Theme } from '../../theme.types';
 import { StoredUtxo } from './bsv.types';
 import type { ApprovalContext } from '../../yoursApi';

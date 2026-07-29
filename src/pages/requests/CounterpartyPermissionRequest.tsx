@@ -9,7 +9,7 @@ import { sendMessage, removeWindow } from '../../utils/chromeHelpers';
 import type {
   CounterpartyPermissionRequest as CounterpartyPermissionRequestType,
   CounterpartyPermissions,
-} from '@bsv/wallet-toolbox-mobile';
+} from '@bsv/wallet-toolbox-client';
 
 export type CounterpartyPermissionRequestProps = {
   request: CounterpartyPermissionRequestType;

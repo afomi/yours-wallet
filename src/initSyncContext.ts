@@ -37,7 +37,7 @@ export async function initSyncContext(options: SyncContextOptions): Promise<Sync
   const services = new OneSatServices(chain);
 
   const { derivations } = await deriveDepositAddresses.execute(
-    { wallet, services, chain },
+    { wallet, services, chain, isBaseWallet: true },
     { startIndex: 0, count: maxKeyIndex + 1 },
   );
 
