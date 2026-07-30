@@ -29,13 +29,13 @@ Playwright can load extensions via bundled Chromium, but Puppeteer has better fi
 
 Repo root = yours-wallet checkout (e.g. `~/Source/1sat/yours-wallet` or wherever the clone lives). Always resolve relative to that root — never hardcode a machine-specific absolute home path in scripts or docs.
 
-| Path | Purpose |
-|------|---------|
-| `build/` | Packed extension (load this) |
-| `.puppeteer-profile/` | **Default persistent CfT user-data-dir** (keys, storage, IndexedDB). Gitignored. |
-| `.debug-wallet.json` | Debug secrets: password, seed, extensionId, receiveAddress. Gitignored. |
-| `scripts/debug-extension.ts` | Launch harness |
-| `.debug-session.log` | Optional agent session log (create as needed; gitignore if used) |
+| Path                         | Purpose                                                                          |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| `build/`                     | Packed extension (load this)                                                     |
+| `.puppeteer-profile/`        | **Default persistent CfT user-data-dir** (keys, storage, IndexedDB). Gitignored. |
+| `.debug-wallet.json`         | Debug secrets: password, seed, extensionId, receiveAddress. Gitignored.          |
+| `scripts/debug-extension.ts` | Launch harness                                                                   |
+| `.debug-session.log`         | Optional agent session log (create as needed; gitignore if used)                 |
 
 **Default recommendation:** always reuse `.puppeteer-profile/` so funded test wallets survive across runs. Only delete it when intentionally wiping the debug wallet.
 
@@ -127,9 +127,9 @@ const resp = await page.evaluate(async () => {
 
 ## Auth model agents must understand
 
-| Store | Key facts |
-|-------|-----------|
-| `chrome.storage.local` | Encrypted keys, `isLocked`, `lastActiveTime`, accounts |
+| Store                    | Key facts                                                    |
+| ------------------------ | ------------------------------------------------------------ |
+| `chrome.storage.local`   | Encrypted keys, `isLocked`, `lastActiveTime`, accounts       |
 | `chrome.storage.session` | `passKey` only (memory; **cleared on full browser restart**) |
 
 - SW wallet init (`initWallet` / `accountContext`) **requires** session `passKey`.
@@ -199,15 +199,15 @@ Never commit `.debug-wallet.json` or `.puppeteer-profile/`.
 
 ## Known pitfalls
 
-| Symptom | Likely cause |
-|---------|----------------|
-| Extension never loads | Pointed at system Chrome instead of CfT / missing `enableExtensions` |
-| `Wallet not initialized` with main UI visible | Session `passKey` missing; UI unlocked via `lastActiveTime` only |
-| Empty Receive panel | Same as above, or `accountContext` null before unlock |
-| Spinner then safety-window warn | SW never sent sync `complete` |
-| `ERR_BLOCKED_BY_CLIENT` after reload | Navigated before extension SW finished restarting |
-| `Target closed` | Human/agent closed CfT window or killed profile Chrome |
-| Balance 0 after fund | Still syncing; wrong address; or sweep/internalize error in SW log |
+| Symptom                                       | Likely cause                                                         |
+| --------------------------------------------- | -------------------------------------------------------------------- |
+| Extension never loads                         | Pointed at system Chrome instead of CfT / missing `enableExtensions` |
+| `Wallet not initialized` with main UI visible | Session `passKey` missing; UI unlocked via `lastActiveTime` only     |
+| Empty Receive panel                           | Same as above, or `accountContext` null before unlock                |
+| Spinner then safety-window warn               | SW never sent sync `complete`                                        |
+| `ERR_BLOCKED_BY_CLIENT` after reload          | Navigated before extension SW finished restarting                    |
+| `Target closed`                               | Human/agent closed CfT window or killed profile Chrome               |
+| Balance 0 after fund                          | Still syncing; wrong address; or sweep/internalize error in SW log   |
 
 ## References
 

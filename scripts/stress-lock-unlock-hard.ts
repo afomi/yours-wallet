@@ -95,9 +95,7 @@ function dumpPending(reason: string) {
   const list = [...pending.values()].sort((a, b) => a.startedAt - b.startedAt);
   netLog(`PENDING_DUMP reason=${reason} count=${list.length}`);
   for (const e of list) {
-    netLog(
-      `  PENDING age=${now - e.startedAt}ms id=${e.id} ${e.method} ${e.url} ${parseRpc(e.postData).summary}`,
-    );
+    netLog(`  PENDING age=${now - e.startedAt}ms id=${e.id} ${e.method} ${e.url} ${parseRpc(e.postData).summary}`);
     if (e.postData) netLog(`    BODY ${e.postData.slice(0, 500)}`);
   }
   // wallet POSTs only, last 25
@@ -122,11 +120,7 @@ async function attachNetworkOnce(target: Target, source: string, seen: Set<strin
     await session.send('Network.enable');
     session.on(
       'Network.requestWillBeSent',
-      (p: {
-        requestId: string;
-        request: { url: string; method: string; postData?: string };
-        type?: string;
-      }) => {
+      (p: { requestId: string; request: { url: string; method: string; postData?: string }; type?: string }) => {
         const id = `${source}:${p.requestId}`;
         const entry: NetEntry = {
           id,
@@ -268,9 +262,7 @@ async function sendAction(page: Page, action: string, timeoutMs: number): Promis
   return Promise.race([
     page.evaluate(async (act) => {
       return await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action: act }, (r) =>
-          resolve({ r, err: chrome.runtime.lastError?.message }),
-        );
+        chrome.runtime.sendMessage({ action: act }, (r) => resolve({ r, err: chrome.runtime.lastError?.message }));
       });
     }, action),
     new Promise((resolve) => setTimeout(() => resolve({ timeout: true, ms: timeoutMs }), timeoutMs)),

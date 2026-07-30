@@ -81,56 +81,59 @@ async function attachNet(target: Target, source: string, seen: Set<string>): Pro
   }
   log(`CDP on ${source}`);
 
-  session.on('Network.requestWillBeSent', (p: {
-    requestId: string;
-    request: { url: string; method: string; postData?: string; headers?: Record<string, string> };
-  }) => {
-    const id = `${source}:${p.requestId}`;
-    pending.set(id, {
-      start: Date.now(),
-      url: p.request.url,
-      method: p.request.method,
-      postData: p.request.postData,
-      reqHeaders: p.request.headers,
-    });
-    if (p.request.url.includes('wallet.1sat') || p.request.url.includes('messagebox')) {
-      push({
-        t: Date.now(),
-        kind: 'REQ',
-        id,
+  session.on(
+    'Network.requestWillBeSent',
+    (p: {
+      requestId: string;
+      request: { url: string; method: string; postData?: string; headers?: Record<string, string> };
+    }) => {
+      const id = `${source}:${p.requestId}`;
+      pending.set(id, {
+        start: Date.now(),
         url: p.request.url,
         method: p.request.method,
         postData: p.request.postData,
         reqHeaders: p.request.headers,
       });
-    }
-  });
+      if (p.request.url.includes('wallet.1sat') || p.request.url.includes('messagebox')) {
+        push({
+          t: Date.now(),
+          kind: 'REQ',
+          id,
+          url: p.request.url,
+          method: p.request.method,
+          postData: p.request.postData,
+          reqHeaders: p.request.headers,
+        });
+      }
+    },
+  );
 
-  session.on('Network.responseReceived', (p: {
-    requestId: string;
-    response: { url: string; status: number; headers: Record<string, string> };
-  }) => {
-    const id = `${source}:${p.requestId}`;
-    const pe = pending.get(id);
-    if (!pe) return;
-    // normalize header keys to lowercase
-    const resHeaders: Record<string, string> = {};
-    for (const [k, v] of Object.entries(p.response.headers || {})) {
-      resHeaders[k.toLowerCase()] = String(v);
-    }
-    (pe as { resHeaders?: Record<string, string>; status?: number }).resHeaders = resHeaders;
-    (pe as { status?: number }).status = p.response.status;
-    if (p.response.url.includes('wallet.1sat') || p.response.url.includes('messagebox')) {
-      push({
-        t: Date.now(),
-        kind: 'RES',
-        id,
-        url: p.response.url,
-        status: p.response.status,
-        resHeaders,
-      });
-    }
-  });
+  session.on(
+    'Network.responseReceived',
+    (p: { requestId: string; response: { url: string; status: number; headers: Record<string, string> } }) => {
+      const id = `${source}:${p.requestId}`;
+      const pe = pending.get(id);
+      if (!pe) return;
+      // normalize header keys to lowercase
+      const resHeaders: Record<string, string> = {};
+      for (const [k, v] of Object.entries(p.response.headers || {})) {
+        resHeaders[k.toLowerCase()] = String(v);
+      }
+      (pe as { resHeaders?: Record<string, string>; status?: number }).resHeaders = resHeaders;
+      (pe as { status?: number }).status = p.response.status;
+      if (p.response.url.includes('wallet.1sat') || p.response.url.includes('messagebox')) {
+        push({
+          t: Date.now(),
+          kind: 'RES',
+          id,
+          url: p.response.url,
+          status: p.response.status,
+          resHeaders,
+        });
+      }
+    },
+  );
 
   session.on('Network.loadingFinished', async (p: { requestId: string }) => {
     const id = `${source}:${p.requestId}`;
@@ -227,7 +230,10 @@ function dumpHang(reason: string) {
     );
     log(`    body=${(e.body || '').slice(0, 120)}`);
   }
-  writeFileSync(jsonPath, JSON.stringify({ reason, at: Date.now(), events, pending: open.map(([id, p]) => ({ id, ...p })) }, null, 2));
+  writeFileSync(
+    jsonPath,
+    JSON.stringify({ reason, at: Date.now(), events, pending: open.map(([id, p]) => ({ id, ...p })) }, null, 2),
+  );
   log(`wrote ${jsonPath}`);
 }
 

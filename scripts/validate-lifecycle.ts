@@ -23,10 +23,9 @@ const check = (name: string, ok: boolean, detail?: string) => {
 };
 
 async function getWorker(browser: Browser): Promise<WebWorker> {
-  const t = await browser.waitForTarget(
-    (x) => x.type() === 'service_worker' && x.url().endsWith('/background.js'),
-    { timeout: 60_000 },
-  );
+  const t = await browser.waitForTarget((x) => x.type() === 'service_worker' && x.url().endsWith('/background.js'), {
+    timeout: 60_000,
+  });
   const w = await t.worker();
   if (!w) throw new Error('no SW');
   return w;
@@ -37,9 +36,7 @@ async function msg(page: Page, action: string, timeoutMs = 15_000): Promise<unkn
     page.evaluate(
       (act) =>
         new Promise((resolve) => {
-          chrome.runtime.sendMessage({ action: act }, (r) =>
-            resolve({ r, err: chrome.runtime.lastError?.message }),
-          );
+          chrome.runtime.sendMessage({ action: act }, (r) => resolve({ r, err: chrome.runtime.lastError?.message }));
         }),
       action,
     ),
@@ -54,9 +51,7 @@ async function unlock(page: Page) {
   await el.click({ clickCount: 3 });
   await el.type(secrets.password, { delay: 8 });
   await page.evaluate(() => {
-    [...document.querySelectorAll('button')]
-      .find((b) => /unlock/i.test(b.textContent || ''))
-      ?.click();
+    [...document.querySelectorAll('button')].find((b) => /unlock/i.test(b.textContent || ''))?.click();
   });
   await page.waitForFunction(() => !document.querySelector('input[type="password"]'), { timeout: 30_000 });
   await new Promise((r) => setTimeout(r, 2500));
@@ -136,7 +131,11 @@ async function main() {
     timeout?: boolean;
     r?: { success?: boolean; data?: number };
   };
-  check('unlocked getBalance ok', !bal.timeout && bal.r?.success === true && typeof bal.r.data === 'number', JSON.stringify(bal));
+  check(
+    'unlocked getBalance ok',
+    !bal.timeout && bal.r?.success === true && typeof bal.r.data === 'number',
+    JSON.stringify(bal),
+  );
 
   const addr = (await msg(page, 'getReceiveAddress', 10_000)) as {
     timeout?: boolean;
@@ -148,7 +147,11 @@ async function main() {
     JSON.stringify(addr),
   );
   if (secrets.receiveAddress) {
-    check('receive address matches debug wallet', addr.r?.data === secrets.receiveAddress, `${addr.r?.data} vs ${secrets.receiveAddress}`);
+    check(
+      'receive address matches debug wallet',
+      addr.r?.data === secrets.receiveAddress,
+      `${addr.r?.data} vs ${secrets.receiveAddress}`,
+    );
   }
 
   // CWI getPublicKey via extension page (identity)
@@ -193,11 +196,7 @@ async function main() {
     timeout?: boolean;
     r?: { success?: boolean; data?: number };
   };
-  check(
-    'second unlock getBalance ok',
-    !bal2.timeout && bal2.r?.success === true,
-    JSON.stringify(bal2),
-  );
+  check('second unlock getBalance ok', !bal2.timeout && bal2.r?.success === true, JSON.stringify(bal2));
 
   const passed = results.filter((r) => r.ok).length;
   console.log('\n[validate] SUMMARY', { passed, total: results.length, results });

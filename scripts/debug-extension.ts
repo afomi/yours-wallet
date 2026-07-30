@@ -117,9 +117,7 @@ async function createWallet(page: Page, secrets: Secrets): Promise<Secrets> {
     timeout: 20_000,
   });
   await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Create New Wallet'),
-    );
+    const btn = [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Create New Wallet'));
     if (!btn) throw new Error('Create New Wallet button not found');
     (btn as HTMLButtonElement).click();
   });
@@ -140,9 +138,7 @@ async function createWallet(page: Page, secrets: Secrets): Promise<Secrets> {
   await inputs[3].type(secrets.password, { delay: 15 });
 
   await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Generate Seed'),
-    );
+    const btn = [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Generate Seed'));
     if (!btn) throw new Error('Generate Seed button not found');
     (btn as HTMLButtonElement).click();
   });
@@ -238,10 +234,12 @@ async function main() {
     if (wantReload) {
       console.log('[sw] chrome.runtime.reload()…');
       // reload tears down the worker; fire-and-forget
-      worker.evaluate(() => {
-        // @ts-expect-error chrome in SW
-        chrome.runtime.reload();
-      }).catch(() => {});
+      worker
+        .evaluate(() => {
+          // @ts-expect-error chrome in SW
+          chrome.runtime.reload();
+        })
+        .catch(() => {});
       const worker2 = await getServiceWorker(browser);
       worker2.on('console', (msg) => console.log(`[sw:${msg.type()}]`, msg.text()));
       await dumpSwState(worker2);

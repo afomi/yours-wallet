@@ -164,12 +164,7 @@ type IdentifierRowProps = {
 };
 
 const IdentifierRow = ({ label, value, copied, onCopy }: IdentifierRowProps) => (
-  <motion.div
-    variants={rowVariant}
-    onClick={onCopy}
-    className="w-full cursor-pointer pt-1"
-    title={`Copy ${label}`}
-  >
+  <motion.div variants={rowVariant} onClick={onCopy} className="w-full cursor-pointer pt-1" title={`Copy ${label}`}>
     <div className="flex items-center justify-center gap-1.5">
       <span className="text-[9px] uppercase tracking-wider" style={{ color: '#475467' }}>
         {label}
@@ -1023,12 +1018,7 @@ export const Settings = () => {
           </motion.div>
 
           {identity.bapId && identity.isPublished && (
-            <IdentifierRow
-              label="BAP ID"
-              value={identity.bapId}
-              copied={copiedBapId}
-              onCopy={handleCopyBapId}
-            />
+            <IdentifierRow label="BAP ID" value={identity.bapId} copied={copiedBapId} onCopy={handleCopyBapId} />
           )}
 
           {identityPubKey && (

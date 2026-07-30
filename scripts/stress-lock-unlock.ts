@@ -53,9 +53,7 @@ async function sendAction(page: Page, action: string, timeoutMs = 25_000): Promi
   return Promise.race([
     page.evaluate(async (act) => {
       return await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action: act }, (r) =>
-          resolve({ r, err: chrome.runtime.lastError?.message }),
-        );
+        chrome.runtime.sendMessage({ action: act }, (r) => resolve({ r, err: chrome.runtime.lastError?.message }));
       });
     }, action),
     new Promise((resolve) => setTimeout(() => resolve({ timeout: true, ms: timeoutMs }), timeoutMs)),
