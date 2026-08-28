@@ -292,6 +292,11 @@ export class ChromeStorageService {
     }
   };
 
+  /** Basket re-file runs in initWallet (needs an unlocked wallet). */
+  completeWalletDataMigration = async (): Promise<void> => {
+    await this.set({ version: CHROME_STORAGE_OBJECT_VERSION });
+  };
+
   getAndSetStorage = async (): Promise<Partial<ChromeStorageObject> | undefined> => {
     this.storage = await this.get(null); // fetches all chrome storage by passing null
 

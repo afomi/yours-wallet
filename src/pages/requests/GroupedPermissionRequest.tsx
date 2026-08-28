@@ -6,6 +6,7 @@ import { useBottomMenu } from '../../hooks/useBottomMenu';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useTheme } from '../../hooks/useTheme';
 import { sendMessage, removeWindow } from '../../utils/chromeHelpers';
+import { protocolLabel } from '../../utils/protocols';
 import type {
   GroupedPermissionRequest as GroupedPermissionRequestType,
   GroupedPermissions,
@@ -202,7 +203,7 @@ export const GroupedPermissionRequestPage = (props: GroupedPermissionRequestProp
               />
               <div className="flex flex-col min-w-0">
                 <span className="text-xs font-medium" style={{ color: theme.color.global.contrast }}>
-                  {p.protocolID[1]} (level {p.protocolID[0]})
+                  {protocolLabel(p.protocolID)} (level {p.protocolID[0]})
                   {p.counterparty ? ` — ${p.counterparty.slice(0, 10)}...` : ''}
                 </span>
                 {p.description && (

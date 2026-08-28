@@ -29,7 +29,7 @@ export const DEFAULT_RELAYX_ORD_PATH = "m/44'/236'/0'/2/0";
 export const SWEEP_PATH = "m/44'/236'/0'/0/0";
 export const DEFAULT_IDENTITY_PATH = "m/0'/236'/0'/0/0";
 export const DEFAULT_TWETCH_WALLET_PATH = 'm/0/0';
-export const CHROME_STORAGE_OBJECT_VERSION = 6;
+export const CHROME_STORAGE_OBJECT_VERSION = 7;
 
 /** Default remote storage provider (active store for new wallets). */
 export const DEFAULT_STORAGE_REMOTE_URL = 'https://wallet.1sat.app';

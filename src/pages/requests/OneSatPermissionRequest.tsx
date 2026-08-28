@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { OneSatPermissionPrompt } from '@1sat/permission-module-ui';
 import { useBottomMenu } from '../../hooks/useBottomMenu';
+import { useServiceContext } from '../../hooks/useServiceContext';
 import { useTheme } from '../../hooks/useTheme';
 import { sendMessage } from '../../utils/chromeHelpers';
 import type { OneSatPromptStorageEntry } from '../../services/oneSatPrompt';
@@ -19,6 +20,11 @@ export type OneSatPermissionRequestProps = {
 export const OneSatPermissionRequestPage = ({ request, onResponse }: OneSatPermissionRequestProps) => {
   const { theme } = useTheme();
   const { handleSelect, hideMenu } = useBottomMenu();
+  // Live verification runs here rather than in the background module: the
+  // request reaches this page through chrome.storage, so it can only carry
+  // data. The prompt does its own lookups with the wallet's own services.
+  const { apiContext } = useServiceContext();
+  const services = apiContext?.services;
 
   useEffect(() => {
     handleSelect('bsv');
@@ -58,6 +64,7 @@ export const OneSatPermissionRequestPage = ({ request, onResponse }: OneSatPermi
         onApprove={() => respond(true)}
         onReject={() => respond(false)}
         theme={themeProp}
+        services={services}
       />
     </div>
   );

@@ -6,6 +6,7 @@ import { useBottomMenu } from '../../hooks/useBottomMenu';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useTheme } from '../../hooks/useTheme';
 import { sendMessage, removeWindow } from '../../utils/chromeHelpers';
+import { knownProtocol, protocolLabel, securityLevelLabel } from '../../utils/protocols';
 import type { PermissionRequest as PermissionRequestType } from '@bsv/wallet-toolbox-client';
 
 export type PermissionRequestProps = {
@@ -31,8 +32,11 @@ const getPermissionTitle = (type: string): string => {
 
 const getPermissionDescription = (request: PermissionRequestType): string => {
   switch (request.type) {
-    case 'protocol':
+    case 'protocol': {
+      const known = knownProtocol(request.protocolID);
+      if (known) return known.description;
       return `An application is requesting permission to use protocol "${request.protocolID?.[1] || 'unknown'}" with security level ${request.protocolID?.[0] || 0}.`;
+    }
     case 'basket':
       return `An application is requesting access to basket "${request.basket || 'unknown'}".`;
     case 'certificate':
@@ -157,7 +161,7 @@ export const PermissionRequestPage = (props: PermissionRequestProps) => {
               Protocol
             </span>
             <span className="text-xs break-all" style={{ color: theme.color.global.contrast }}>
-              {request.protocolID?.[1]}
+              {protocolLabel(request.protocolID)}
             </span>
           </div>
           <div
@@ -168,7 +172,7 @@ export const PermissionRequestPage = (props: PermissionRequestProps) => {
               Security
             </span>
             <span className="text-xs" style={{ color: theme.color.global.contrast }}>
-              Level {request.protocolID?.[0]}
+              {securityLevelLabel(request.protocolID?.[0])}
             </span>
           </div>
           <Show when={!!request.counterparty}>

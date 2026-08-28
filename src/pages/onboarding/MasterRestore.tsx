@@ -30,9 +30,22 @@ export const MasterRestore = () => {
     hiddenFileInput.current?.click();
   };
 
+  const isZipFile = (file: File) => {
+    // Windows often reports ZIP as application/x-zip-compressed (or empty).
+    // Prefer extension; accept known ZIP MIME types as a secondary check.
+    const name = file.name.toLowerCase();
+    if (name.endsWith('.zip')) return true;
+    return [
+      'application/zip',
+      'application/x-zip',
+      'application/x-zip-compressed',
+      'multipart/x-zip',
+    ].includes(file.type);
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type === 'application/zip') {
+    if (file && isZipFile(file)) {
       setSelectedFile(file);
       setPasswordError(false);
     } else {
@@ -45,7 +58,7 @@ export const MasterRestore = () => {
     event.preventDefault();
     setIsDragOver(false);
     const file = event.dataTransfer.files?.[0];
-    if (file && file.type === 'application/zip') {
+    if (file && isZipFile(file)) {
       setSelectedFile(file);
       setPasswordError(false);
     } else {
@@ -186,7 +199,7 @@ export const MasterRestore = () => {
                 ref={hiddenFileInput}
                 onChange={handleFileSelect}
                 style={{ display: 'none' }}
-                accept=".zip,application/zip"
+                accept=".zip,application/zip,application/x-zip-compressed,application/x-zip"
               />
             </motion.div>
           ) : (

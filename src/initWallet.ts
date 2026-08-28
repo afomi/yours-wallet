@@ -8,11 +8,16 @@ import {
   LocalWalletPermissionsManager,
   IndexedDbPermissionStore,
 } from '@1sat/wallet-browser';
-import { syncAddresses, syncMessages, createContext as createActionContext } from '@1sat/actions';
-import { createOneSatPermissionModule } from '@1sat/permission-module';
+import {
+  syncAddresses,
+  syncMessages,
+  createContext as createActionContext,
+  migrateLegacyP1SatBaskets,
+} from '@1sat/actions';
+import { createAssetPermissionModules } from '@1sat/permission-module';
 import type { WalletInterface } from '@bsv/sdk';
 import { ChromeStorageService } from './services/ChromeStorage.service';
-import { MESSAGEBOX_URL } from './utils/constants';
+import { CHROME_STORAGE_OBJECT_VERSION, MESSAGEBOX_URL } from './utils/constants';
 import type { Account, StorageConfig } from './services/types/chromeStorage.types';
 import { decrypt } from './utils/crypto';
 import type { Keys } from './utils/keys';
@@ -121,6 +126,49 @@ export interface InitWalletOptions {
 }
 
 /**
+ * Open storage for the *currently selected* account for master backup only.
+ * No address sync, permissions UI, or accountContext side effects.
+ * Caller must set selectedAccount before calling, and await close() when done.
+ */
+export const openAccountStorageForBackup = async (
+  chromeStorageService: ChromeStorageService,
+): Promise<{ storage: WalletStorageManager; close: () => Promise<void> }> => {
+  await chromeStorageService.getAndSetStorage();
+  const keys = await decryptKeys(chromeStorageService);
+  if (!keys.identityWif) {
+    throw new Error('No identity key found in decrypted keys');
+  }
+
+  const { account } = chromeStorageService.getCurrentAccountObject();
+  const { activeRemote, backups } = resolveStorageConfig(account?.storageConfig);
+  const storageIdentityKey = await ensureStorageIdentityKey(chromeStorageService);
+
+  const { storage, destroy, monitor } = await createWebWallet({
+    privateKey: keys.identityWif,
+    chain: 'main',
+    feeModel: { model: 'sat/kb', value: chromeStorageService.getCustomFeeRate() },
+    activeRemote,
+    backups,
+    storageIdentityKey,
+    taskStateStore: createIndexedDbTaskStateStore(),
+  });
+
+  // Stop monitor work so BackupSync/runOnce does not contend with getSyncChunk.
+  try {
+    monitor.stopTasks();
+  } catch {
+    // ignore
+  }
+
+  return {
+    storage,
+    close: async () => {
+      await destroy();
+    },
+  };
+};
+
+/**
  * Initialize the Wallet instance with all sync components.
  *
  * Uses remote storage as the sole storage backend — no local IndexedDB.
@@ -174,12 +222,10 @@ export const initWallet = async (
   //    LocalWalletPermissionsManager for basket/cert/spending grants.
   const permissionStore = new IndexedDbPermissionStore({ scope: 'yours-wallet' });
 
-  // 4. Build the 1Sat permission module that gates 'p 1sat'-protocol
-  //    signing via hashOutputs commitments captured at createAction time.
-  //    The module receives the underlying base wallet so its internal
-  //    placeholder-substitution createSignature calls bypass the
-  //    permission manager (no re-prompt loops).
-  const oneSatModule = createOneSatPermissionModule({
+  // 4. Build per-asset permission modules (1sat / opns / bsv21 / lock).
+  //    Shared toolkit; separate BRC-99 scheme ids. Base wallet is used for
+  //    internal apply crypto so createSignature does not re-prompt.
+  const assetModules = createAssetPermissionModules({
     wallet: baseWallet,
     promptHandler: showOneSatPrompt,
     adminOriginator: ADMIN_ORIGINATOR,
@@ -191,12 +237,10 @@ export const initWallet = async (
 
   // 5. Wrap with permissions manager for external app access control.
   // Grants persist in IndexedDB (off-chain) via LocalWalletPermissionsManager.
-  // The 1Sat module is registered under schemeID '1sat' — any 'p 1sat'
-  // protocol or basket prefix and any 'p 1sat' label routes to it.
   const wallet = new LocalWalletPermissionsManager(
     baseWallet,
     ADMIN_ORIGINATOR,
-    { permissionModules: { '1sat': oneSatModule } },
+    { permissionModules: assetModules },
     { store: permissionStore },
   );
 
@@ -207,6 +251,17 @@ export const initWallet = async (
   // bypass the manager entirely and produce plaintext customInstructions —
   // creating mixed-encoding rows that break later reads.
   const adminWallet = withOriginator(wallet, ADMIN_ORIGINATOR);
+
+  const storageVersion = chromeStorageService.storage?.version ?? 0;
+  if (storageVersion < CHROME_STORAGE_OBJECT_VERSION) {
+    try {
+      await migrateLegacyP1SatBaskets(baseWallet);
+      await chromeStorageService.completeWalletDataMigration();
+    } catch (err) {
+      console.error('[initWallet] legacy basket migration failed; will retry next unlock', err);
+    }
+  }
+
   const maxKeyIndex = account?.settings?.maxKeyIndex ?? 4; // default: 0-4 = 5 addresses
   const syncContext = await initSyncContext({
     wallet: adminWallet,

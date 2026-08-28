@@ -40,7 +40,7 @@ import { removeWindow } from './utils/chromeHelpers';
 import { Account, ChromeStorageObject, StorageConfig } from './services/types/chromeStorage.types';
 import { ChromeStorageService } from './services/ChromeStorage.service';
 import { handleOneSatPermissionResponse, initOneSatPromptBridge } from './services/oneSatPrompt';
-import { initWallet, type AccountContext } from './initWallet';
+import { initWallet, openAccountStorageForBackup, type AccountContext } from './initWallet';
 import { HOSTED_YOURS_IMAGE } from './utils/constants';
 import { WalletBackupService } from './backup/WalletBackupService';
 
@@ -643,6 +643,7 @@ if (isInServiceWorker) {
       // Storage management (popup internal)
       'STORAGE_GET_INFO',
       'STORAGE_SYNC_BACKUPS',
+      'STORAGE_REPAIR_SYNC',
       'STORAGE_SET_ACTIVE_STORAGE',
       'STORAGE_ADD_REMOTE',
       'STORAGE_REMOVE_REMOTE',
@@ -784,6 +785,9 @@ if (isInServiceWorker) {
           return true;
         case 'STORAGE_SYNC_BACKUPS':
           processStorageSyncBackups(sendResponse);
+          return true;
+        case 'STORAGE_REPAIR_SYNC':
+          processStorageRepairSync(sendResponse);
           return true;
         case 'STORAGE_SET_ACTIVE_STORAGE':
           processStorageSetActiveStorage(message.target, sendResponse);
@@ -1155,6 +1159,62 @@ if (isInServiceWorker) {
           error: error instanceof Error ? error.message : String(error),
         });
       });
+  };
+
+  /**
+   * Repair local/remote divergence (e.g. v6 flipped remote-active without a full push).
+   * setActive(local) then setActive(remote) — merge both ways via toolbox, end remote-active.
+   */
+  const processStorageRepairSync = async (sendResponse: CallbackResponse) => {
+    try {
+      await ensureWallet(true);
+    } catch (err) {
+      sendResponse({
+        type: 'STORAGE_REPAIR_SYNC',
+        success: false,
+        error: err instanceof Error ? err.message : 'Wallet not available',
+      });
+      return;
+    }
+    if (!accountContext) {
+      sendResponse({ type: 'STORAGE_REPAIR_SYNC', success: false, error: 'Wallet not initialized' });
+      return;
+    }
+
+    try {
+      const { account } = chromeStorageService.getCurrentAccountObject();
+      const config: StorageConfig = account?.storageConfig ?? { remotes: [] };
+      const remoteUrl = config.activeRemote || config.remotes?.[0];
+      if (!remoteUrl) {
+        sendResponse({
+          type: 'STORAGE_REPAIR_SYNC',
+          success: false,
+          error: 'No remote configured to repair',
+        });
+        return;
+      }
+
+      await accountContext.setActiveStorage('local');
+      await accountContext.setActiveStorage(remoteUrl);
+
+      const nextConfig = await updateStorageConfig((current) => {
+        const remotes = current.remotes ?? [];
+        const withTarget = remotes.includes(remoteUrl) ? remotes : [...remotes, remoteUrl];
+        return { ...current, activeRemote: remoteUrl, remotes: withTarget };
+      });
+
+      sendResponse({
+        type: 'STORAGE_REPAIR_SYNC',
+        success: true,
+        data: { storageConfig: nextConfig },
+      });
+    } catch (error) {
+      sendResponse({
+        type: 'STORAGE_REPAIR_SYNC',
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   };
 
   /** Patch and persist the current account's storageConfig. */
@@ -1646,6 +1706,54 @@ if (isInServiceWorker) {
   // MASTER BACKUP/RESTORE HANDLERS ********************************
 
   const processMasterBackup = async (sendResponse: CallbackResponse) => {
+    // Remember where the user started so we can restore even if export fails.
+    const originalSelectedAccount =
+      chromeStorageService.getCurrentAccountObject().selectedAccount || '';
+
+    const broadcastProgress = (event: {
+      message: string;
+      stage?: string;
+      accountName?: string;
+      accountIndex?: number;
+      totalAccounts?: number;
+    }) => {
+      console.log('[MasterBackup]', event.message);
+      chrome.runtime
+        .sendMessage({
+          action: 'MASTER_BACKUP_PROGRESS',
+          data: event,
+        })
+        .catch(() => {
+          // Popup may not be listening — that's fine
+        });
+    };
+
+    /** Awaitable close — dropWalletContext is fire-and-forget and races IDB. */
+    const closeLiveWallet = async (reason: string) => {
+      const ctx = accountContext;
+      accountContext = null;
+      if (!ctx) return;
+      console.log(`[MasterBackup] closing live wallet (${reason})`);
+      try {
+        await ctx.close();
+      } catch (err) {
+        console.error(`[MasterBackup] close after ${reason}:`, err);
+      }
+    };
+
+    const restoreOriginalAccount = async () => {
+      try {
+        if (originalSelectedAccount) {
+          await chromeStorageService.update({ selectedAccount: originalSelectedAccount });
+        }
+        await chromeStorageService.getAndSetStorage();
+        // Full init so the user lands back on a normal live wallet.
+        await initializeWallet();
+      } catch (err) {
+        console.error('[MasterBackup] failed to restore original account:', err);
+      }
+    };
+
     try {
       // Extension-internal: fail closed if locked (no unlock popup).
       try {
@@ -1670,53 +1778,45 @@ if (isInServiceWorker) {
 
       const chain = 'main' as const;
 
-      // Build list of ALL accounts from chrome storage
-      const chromeStorage = await chromeStorageService.getAndSetStorage();
-      const allAccounts = chromeStorage?.accounts || {};
-      const accountsList = Object.entries(allAccounts)
-        .map(([identityAddress, acct]) => ({
-          identityKey: acct.pubKeys?.identityPubKey || '',
-          identityAddress,
-          name: acct.name || identityAddress.slice(0, 8),
-        }))
-        .filter((a) => a.identityKey); // skip accounts with no identity key
+      // Same order as Settings backup overlay (getAllAccounts).
+      const accountsList = chromeStorageService
+        .getAllAccounts()
+        .map((acct) => {
+          const withAddress = acct as Account & { address?: string };
+          const identityAddress = withAddress.address || acct.addresses?.identityAddress || '';
+          return {
+            identityKey: acct.pubKeys?.identityPubKey || '',
+            identityAddress,
+            name: acct.name || identityAddress.slice(0, 8),
+          };
+        })
+        .filter((a) => a.identityKey && a.identityAddress);
 
       if (accountsList.length === 0) {
         sendResponse({ type: 'MASTER_BACKUP', success: false, error: 'No accounts found to back up' });
         return;
       }
 
-      // Use the WalletStorageManager directly from AccountContext.
-      // Cast through `unknown` because WalletBackupService imports its WalletStorageManager
-      // type from `@bsv/wallet-toolbox-mobile` while AccountContext uses `@bsv/wallet-toolbox`.
-      // They're the same shape at runtime but TypeScript sees two distinct types.
-      const storage = accountContext.storage as unknown as Parameters<typeof WalletBackupService.exportAllAccounts>[0];
-      if (!storage) {
-        sendResponse({
-          type: 'MASTER_BACKUP',
-          success: false,
-          error: 'Storage manager not available',
-        });
-        return;
-      }
+      // Release the live wallet so per-account opens own the IDB connection.
+      await closeLiveWallet('before-master-backup');
 
       const blob = await WalletBackupService.exportAllAccounts(
-        storage,
         chromeStorageService,
         chain,
         accountsList,
-        (event) => {
-          console.log('[MasterBackup]', event.message);
-          // Broadcast progress to popup so the UI can show per-account status
-          chrome.runtime
-            .sendMessage({
-              action: 'MASTER_BACKUP_PROGRESS',
-              data: event,
-            })
-            .catch(() => {
-              // Popup may not be listening — that's fine
-            });
+        async (acct) => {
+          // Do NOT use chromeStorageService.switchAccount — that emits SWITCH_ACCOUNT
+          // and would race a full initializeWallet while we hold a backup session.
+          await chromeStorageService.update({ selectedAccount: acct.identityAddress });
+          await chromeStorageService.getAndSetStorage();
+          const opened = await openAccountStorageForBackup(chromeStorageService);
+          // wallet-browser vs wallet-toolbox-client WalletStorageManager types differ at compile time only.
+          return {
+            storage: opened.storage as unknown as import('@bsv/wallet-toolbox-client').WalletStorageManager,
+            close: opened.close,
+          };
         },
+        broadcastProgress,
       );
 
       // Convert blob to base64 for message passing
@@ -1728,6 +1828,8 @@ if (isInServiceWorker) {
       }
       const base64Data = btoa(binary);
 
+      await restoreOriginalAccount();
+
       sendResponse({
         type: 'MASTER_BACKUP',
         success: true,
@@ -1735,12 +1837,11 @@ if (isInServiceWorker) {
       });
     } catch (error) {
       console.error('[MasterBackup] Error:', error);
-      chrome.runtime
-        .sendMessage({
-          action: 'MASTER_BACKUP_PROGRESS',
-          data: { stage: 'error', message: error instanceof Error ? error.message : String(error) },
-        })
-        .catch(() => {});
+      broadcastProgress({
+        stage: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      });
+      await restoreOriginalAccount();
       sendResponse({
         type: 'MASTER_BACKUP',
         success: false,

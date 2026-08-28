@@ -178,24 +178,30 @@ export class WalletBackupService {
   /**
    * Export wallet data for ALL accounts to a single ZIP file (v2 format).
    *
-   * All accounts share one IndexedDB, partitioned by identityKey. We call
-   * getSyncChunk on the same storage instance with each account's identityKey
-   * — no need to create additional wallet instances.
+   * Opens each account's own wallet/storage (via `openAccount`) so remote-active
+   * and multi-account backups read the correct authenticated store — not only
+   * the currently unlocked account's session.
    *
    * ZIP layout:
    *   manifest.json              — v2 manifest with per-account metadata
    *   chromeStorage.json         — all accounts' encrypted keys & settings
-   *   settings.bin               — storage settings
+   *   settings.bin               — storage settings (from last opened account)
    *   <identityAddress>/chunk-XXXX.bin — per-account wallet data chunks
    */
   static async exportAllAccounts(
-    storage: WalletStorageManager,
     chromeStorageService: ChromeStorageService,
     chain: Chain,
     accounts: BackupAccountDescriptor[],
+    openAccount: (
+      account: BackupAccountDescriptor,
+    ) => Promise<{ storage: WalletStorageManager; close: () => Promise<void> }>,
     onProgress: (event: MultiAccountProgressEvent) => void,
   ): Promise<Blob> {
     onProgress({ stage: 'preparing', message: 'Preparing backup...', totalAccounts: accounts.length });
+
+    // Capture before openAccount switches selectedAccount for each wallet.
+    const initialChromeStorage = await chromeStorageService.getAndSetStorage();
+    const originalSelectedAccount = initialChromeStorage?.selectedAccount || '';
 
     const zipChunks: Uint8Array[] = [];
     let zipError: Error | null = null;
@@ -208,13 +214,11 @@ export class WalletBackupService {
       zipChunks.push(data);
     });
 
-    const settings = storage.getSettings();
-    const storageIdentityKey = settings.storageIdentityKey;
     const fileBackupStorageKey = 'file-backup-' + Date.now();
-
     const accountManifestEntries: AccountManifestEntry[] = [];
+    let settings: ReturnType<WalletStorageManager['getSettings']> | undefined;
 
-    // Export each account's wallet data
+    // Export each account's wallet data from that account's own storage session
     for (let acctIdx = 0; acctIdx < accounts.length; acctIdx++) {
       const acct = accounts[acctIdx];
 
@@ -223,64 +227,84 @@ export class WalletBackupService {
         accountName: acct.name,
         accountIndex: acctIdx,
         totalAccounts: accounts.length,
-        message: `Backing up "${acct.name}" (${acctIdx + 1} of ${accounts.length})...`,
+        message: `Switching to "${acct.name}" (${acctIdx + 1} of ${accounts.length})...`,
       });
 
-      let chunkCount = 0;
-      let offsets = createInitialOffsets();
+      const { storage, close } = await openAccount(acct);
+      try {
+        settings = storage.getSettings();
+        const storageIdentityKey = settings.storageIdentityKey;
 
-      for (;;) {
-        const args: RequestSyncChunkArgs = {
+        onProgress({
+          stage: 'exporting',
+          accountName: acct.name,
+          accountIndex: acctIdx,
+          totalAccounts: accounts.length,
+          message: `Backing up "${acct.name}" (${acctIdx + 1} of ${accounts.length})...`,
+        });
+
+        let chunkCount = 0;
+        let offsets = createInitialOffsets();
+
+        for (;;) {
+          const args: RequestSyncChunkArgs = {
+            identityKey: acct.identityKey,
+            fromStorageIdentityKey: storageIdentityKey,
+            toStorageIdentityKey: fileBackupStorageKey,
+            since: undefined,
+            maxRoughSize: 10000000,
+            maxItems: 1000,
+            offsets,
+          };
+
+          const chunk = await storage.runAsSync(async (sync) => sync.getSyncChunk(args));
+
+          const chunkName = `${acct.identityAddress}/chunk-${String(chunkCount).padStart(4, '0')}.bin`;
+          const encoded = encode(chunk);
+          const deflate = new ZipDeflate(chunkName, { level: 6 });
+          zip.add(deflate);
+          deflate.push(new Uint8Array(encoded), true);
+
+          chunkCount++;
+
+          if (!chunkHasData(chunk)) break;
+
+          const entityCounts: Record<string, number> = {
+            provenTx: chunk.provenTxs?.length ?? 0,
+            outputBasket: chunk.outputBaskets?.length ?? 0,
+            outputTag: chunk.outputTags?.length ?? 0,
+            txLabel: chunk.txLabels?.length ?? 0,
+            transaction: chunk.transactions?.length ?? 0,
+            output: chunk.outputs?.length ?? 0,
+            txLabelMap: chunk.txLabelMaps?.length ?? 0,
+            outputTagMap: chunk.outputTagMaps?.length ?? 0,
+            certificate: chunk.certificates?.length ?? 0,
+            certificateField: chunk.certificateFields?.length ?? 0,
+            commission: chunk.commissions?.length ?? 0,
+            provenTxReq: chunk.provenTxReqs?.length ?? 0,
+          };
+
+          offsets = offsets.map((o) => ({
+            name: o.name,
+            offset: o.offset + (entityCounts[o.name] ?? 0),
+          }));
+        }
+
+        if (zipError) throw zipError;
+
+        accountManifestEntries.push({
           identityKey: acct.identityKey,
-          fromStorageIdentityKey: storageIdentityKey,
-          toStorageIdentityKey: fileBackupStorageKey,
-          since: undefined,
-          maxRoughSize: 10000000,
-          maxItems: 1000,
-          offsets,
-        };
-
-        const chunk = await storage.runAsSync(async (sync) => sync.getSyncChunk(args));
-
-        const chunkName = `${acct.identityAddress}/chunk-${String(chunkCount).padStart(4, '0')}.bin`;
-        const encoded = encode(chunk);
-        const deflate = new ZipDeflate(chunkName, { level: 6 });
-        zip.add(deflate);
-        deflate.push(new Uint8Array(encoded), true);
-
-        chunkCount++;
-
-        if (!chunkHasData(chunk)) break;
-
-        const entityCounts: Record<string, number> = {
-          provenTx: chunk.provenTxs?.length ?? 0,
-          outputBasket: chunk.outputBaskets?.length ?? 0,
-          outputTag: chunk.outputTags?.length ?? 0,
-          txLabel: chunk.txLabels?.length ?? 0,
-          transaction: chunk.transactions?.length ?? 0,
-          output: chunk.outputs?.length ?? 0,
-          txLabelMap: chunk.txLabelMaps?.length ?? 0,
-          outputTagMap: chunk.outputTagMaps?.length ?? 0,
-          certificate: chunk.certificates?.length ?? 0,
-          certificateField: chunk.certificateFields?.length ?? 0,
-          commission: chunk.commissions?.length ?? 0,
-          provenTxReq: chunk.provenTxReqs?.length ?? 0,
-        };
-
-        offsets = offsets.map((o) => ({
-          name: o.name,
-          offset: o.offset + (entityCounts[o.name] ?? 0),
-        }));
+          identityAddress: acct.identityAddress,
+          name: acct.name,
+          chunkCount,
+        });
+      } finally {
+        await close();
       }
+    }
 
-      if (zipError) throw zipError;
-
-      accountManifestEntries.push({
-        identityKey: acct.identityKey,
-        identityAddress: acct.identityAddress,
-        name: acct.name,
-        chunkCount,
-      });
+    if (!settings) {
+      throw new Error('No accounts exported');
     }
 
     // Add Chrome storage data (all accounts' keys & settings)
@@ -292,7 +316,7 @@ export class WalletBackupService {
     const chromeStorage = await chromeStorageService.getAndSetStorage();
     const backupChromeStorage: BackupChromeStorage = {
       accounts: chromeStorage?.accounts || {},
-      selectedAccount: chromeStorage?.selectedAccount || '',
+      selectedAccount: originalSelectedAccount || chromeStorage?.selectedAccount || '',
       accountNumber: chromeStorage?.accountNumber || 1,
       salt: chromeStorage?.salt || '',
       colorTheme: chromeStorage?.colorTheme,
