@@ -6,7 +6,6 @@ import { UnlockWallet } from './components/UnlockWallet';
 import { BottomMenuContext } from './contexts/BottomMenuContext';
 import { useActivityDetector } from './hooks/useActivityDetector';
 import { useTheme } from './hooks/useTheme';
-import { useViewport } from './hooks/useViewport';
 import { AppsAndTools } from './pages/AppsAndTools';
 import { BsvWallet } from './pages/BsvWallet';
 import { CreateAccount } from './pages/onboarding/CreateAccount';
@@ -33,7 +32,6 @@ import { TransactionApprovalRequest } from './pages/requests/TransactionApproval
 import { SweepMigration } from './pages/SweepMigration';
 
 export const App = () => {
-  const { isMobile } = useViewport();
   const { theme } = useTheme();
   const { isLocked, isReady, chromeStorageService, setIsLocked } = useServiceContext();
   const menuContext = useContext(BottomMenuContext);
@@ -75,8 +73,8 @@ export const App = () => {
       <div
         className="flex items-center justify-center relative p-0"
         style={{
-          width: isMobile ? '100vw' : '24.5rem',
-          height: isMobile ? '100vh' : '33.75rem',
+          width: '24.5rem',
+          height: '33.75rem',
           backgroundColor: walletBg,
         }}
       >
@@ -89,8 +87,8 @@ export const App = () => {
     <div
       className="flex items-center justify-center relative p-0"
       style={{
-        width: isMobile ? '100vw' : '24.5rem',
-        height: isMobile ? '100vh' : '33.75rem',
+        width: '24.5rem',
+        height: '33.75rem',
         backgroundColor: walletBg,
       }}
     >

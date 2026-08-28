@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send } from 'lucide-react';
-import { useViewport } from '../hooks/useViewport';
 import { Theme } from '../theme.types';
 import { Button } from './Button';
 import { Show } from './Show';
@@ -29,7 +28,6 @@ const truncateAddress = (addr: string) => {
 
 export const SendConfirmation = (props: SendConfirmationProps) => {
   const { show, theme, icon, lineItems, total, isProcessing = false, onConfirm, onCancel } = props;
-  const { isMobile } = useViewport();
 
   const contrast = theme.color.global.contrast;
   const gray = theme.color.global.gray;
@@ -48,8 +46,8 @@ export const SendConfirmation = (props: SendConfirmationProps) => {
           style={{
             position: 'absolute',
             inset: 0,
-            width: isMobile ? '100vw' : '22.5rem',
-            height: isMobile ? '100vh' : '33.75rem',
+            width: '22.5rem',
+            height: '33.75rem',
             backgroundColor: bg,
             zIndex: 100,
           }}

@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle } from 'lucide-react';
 import { useServiceContext } from '../hooks/useServiceContext';
 import { useSnackbar } from '../hooks/useSnackbar';
-import { useViewport } from '../hooks/useViewport';
 import { Theme } from '../theme.types';
 import { sleep } from '../utils/sleep';
 import { Button } from './Button';
@@ -22,7 +21,6 @@ export type SpeedBumpProps = {
 
 export const SpeedBump = (props: SpeedBumpProps) => {
   const { message, onCancel, onConfirm, showSpeedBump, theme, withPassword = false } = props;
-  const { isMobile } = useViewport();
 
   const [password, setPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -74,8 +72,8 @@ export const SpeedBump = (props: SpeedBumpProps) => {
           style={{
             position: 'absolute',
             inset: 0,
-            width: isMobile ? '100vw' : '22.5rem',
-            height: isMobile ? '100vh' : '33.75rem',
+            width: '22.5rem',
+            height: '33.75rem',
             backgroundColor: bg,
             zIndex: 100,
           }}

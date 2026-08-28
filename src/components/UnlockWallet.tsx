@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
-import { useViewport } from '../hooks/useViewport';
 import { sleep } from '../utils/sleep';
 import { Input } from './Input';
 import { useServiceContext } from '../hooks/useServiceContext';
@@ -19,7 +18,6 @@ export const UnlockWallet = (props: UnlockWalletProps) => {
   const [password, setPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [verificationFailed, setVerificationFailed] = useState(false);
-  const { isMobile } = useViewport();
   const { chromeStorageService } = useServiceContext();
 
   const handleUnlock = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -65,8 +63,8 @@ export const UnlockWallet = (props: UnlockWalletProps) => {
     <div
       className="flex flex-col items-center justify-center text-center"
       style={{
-        width: isMobile ? '100vw' : '22.5rem',
-        height: isMobile ? '100vh' : '33.75rem',
+        width: '22.5rem',
+        height: '33.75rem',
         backgroundColor: bg,
         color: contrast,
         zIndex: 100,
