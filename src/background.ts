@@ -1707,8 +1707,7 @@ if (isInServiceWorker) {
 
   const processMasterBackup = async (sendResponse: CallbackResponse) => {
     // Remember where the user started so we can restore even if export fails.
-    const originalSelectedAccount =
-      chromeStorageService.getCurrentAccountObject().selectedAccount || '';
+    const originalSelectedAccount = chromeStorageService.getCurrentAccountObject().selectedAccount || '';
 
     const broadcastProgress = (event: {
       message: string;

@@ -13,8 +13,7 @@ export const knownProtocol = (protocolID?: [number, string]) =>
   protocolID ? KNOWN_PROTOCOLS[`${protocolID[0]}:${protocolID[1]}`] : undefined;
 
 /** Display name for a protocol: the friendly label when we have one. */
-export const protocolLabel = (protocolID?: [number, string]) =>
-  knownProtocol(protocolID)?.label ?? protocolID?.[1];
+export const protocolLabel = (protocolID?: [number, string]) => knownProtocol(protocolID)?.label ?? protocolID?.[1];
 
 /** Plain-language reading of the BRC-43 security level. */
 export const securityLevelLabel = (level?: number): string => {

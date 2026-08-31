@@ -35,12 +35,9 @@ export const MasterRestore = () => {
     // Prefer extension; accept known ZIP MIME types as a secondary check.
     const name = file.name.toLowerCase();
     if (name.endsWith('.zip')) return true;
-    return [
-      'application/zip',
-      'application/x-zip',
-      'application/x-zip-compressed',
-      'multipart/x-zip',
-    ].includes(file.type);
+    return ['application/zip', 'application/x-zip', 'application/x-zip-compressed', 'multipart/x-zip'].includes(
+      file.type,
+    );
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
