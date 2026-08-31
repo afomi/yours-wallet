@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # create the GitHub Release
+  id-token: write # sign the build provenance attestation
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Verify tag matches package.json and manifest version
+        run: |
+          set -euo pipefail
+          PKG_VERSION=$(node -p 'require("./package.json").version')
+          MANIFEST_VERSION=$(node -p 'require("./public/manifest.json").version')
+          test "v$PKG_VERSION" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != package.json v$PKG_VERSION"; exit 1; }
+          test "$PKG_VERSION" = "$MANIFEST_VERSION" || { echo "package.json $PKG_VERSION != manifest.json $MANIFEST_VERSION"; exit 1; }
+          echo "tag, package.json, and manifest.json all agree on $PKG_VERSION"
+
+      - name: Install dependencies (frozen lockfile)
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Build extension
+        run: bun run build
+
+      - name: Verify build output
+        run: |
+          set -euo pipefail
+          for f in manifest.json background.js content.js inject.js index.html; do
+            test -f "build/$f" || { echo "missing build/$f"; exit 1; }
+          done
+          echo "all expected build outputs present"
+
+      # Normalize file mtimes to the commit date and zip in sorted order so the
+      # same tag always produces a byte-identical, hash-verifiable zip.
+      - name: Package
+        run: |
+          set -euo pipefail
+          COMMIT_TS=$(git log -1 --format=%ct)
+          find build -exec touch -d "@$COMMIT_TS" {} +
+          ZIP="yours-wallet-$GITHUB_REF_NAME.zip"
+          (cd build && find . -type f ! -name '*.map' | sort | zip -X "../$ZIP" -@)
+          sha256sum "$ZIP" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: yours-wallet-${{ github.ref_name }}.zip
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --title "Yours Wallet $GITHUB_REF_NAME" \
+            --generate-notes \
+            "yours-wallet-$GITHUB_REF_NAME.zip" SHA256SUMS.txt
