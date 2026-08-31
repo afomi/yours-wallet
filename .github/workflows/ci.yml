@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies (frozen lockfile)
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Build extension
+        run: bun run build
+
+      # Don't trust the build script's exit code alone — verify the artifacts
+      # exist and that the built manifest agrees with package.json.
+      - name: Verify build output
+        run: |
+          set -euo pipefail
+          for f in manifest.json background.js content.js inject.js index.html; do
+            test -f "build/$f" || { echo "missing build/$f"; exit 1; }
+          done
+          node -e '
+            const m = require("./build/manifest.json");
+            const p = require("./package.json");
+            if (m.version !== p.version) {
+              console.error(`version mismatch: manifest ${m.version} vs package.json ${p.version}`);
+              process.exit(1);
+            }
+            console.log(`manifest version ${m.version} matches package.json`);
+          '
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: yours-wallet-${{ github.sha }}
+          path: |
+            build/
+            !build/**/*.map
+          retention-days: 14
