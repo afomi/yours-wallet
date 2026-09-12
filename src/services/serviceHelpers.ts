@@ -1,6 +1,5 @@
 const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const deepMerge = <T extends Record<string, any>>(target: T, source: Partial<T>): T => {
   for (const key of Object.keys(source) as Array<keyof T>) {
     if (UNSAFE_KEYS.has(key as string)) continue;

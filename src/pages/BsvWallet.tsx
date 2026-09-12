@@ -382,7 +382,7 @@ export const BsvWallet = () => {
   }, [bsv21s, account]);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       const obj = await chromeStorageService.getAndSetStorage();
       setShowWelcome(!!obj?.showWelcome);
       // Show backup promo only if not previously dismissed (per-account)
@@ -404,7 +404,7 @@ export const BsvWallet = () => {
 
   // Fetch receive address from service worker
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const response = await sendMessageAsync<{ success: boolean; data?: string }>({
           action: YoursEventName.GET_RECEIVE_ADDRESS,
@@ -434,8 +434,8 @@ export const BsvWallet = () => {
 
   useEffect(() => {
     if (updateBalance) {
-      getAndSetBsvBalance();
-      loadLocks();
+      void getAndSetBsvBalance();
+      void loadLocks();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateBalance]);
@@ -450,15 +450,15 @@ export const BsvWallet = () => {
   };
 
   useEffect(() => {
-    loadLocks && loadLocks();
-    getAndSetBsvBalance();
+    void loadLocks();
+    void getAndSetBsvBalance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch MNEE balance once receiveAddress is available
   useEffect(() => {
     if (receiveAddress) {
-      updateMneeBalance();
+      void updateMneeBalance();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [receiveAddress]);
@@ -467,7 +467,7 @@ export const BsvWallet = () => {
   // that refreshes the BSV balance. Without this, MNEE was fetched exactly once.
   useEffect(() => {
     if (!isSyncing && receiveAddress) {
-      updateMneeBalance();
+      void updateMneeBalance();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSyncing]);
@@ -475,7 +475,7 @@ export const BsvWallet = () => {
   // Check for legacy MNEE balance (old address) once wallet is ready
   useEffect(() => {
     if (!apiContext?.services?.mnee) return;
-    (async () => {
+    void (async () => {
       try {
         const { account } = chromeStorageService.getCurrentAccountObject();
         const passKey = await chromeStorageService.getPassKey();
@@ -526,7 +526,7 @@ export const BsvWallet = () => {
       } else {
         addSnackbar(`Moved $${result.amount?.toFixed(2)} MNEE to your new wallet!`, 'success');
         setLegacyMneeBalance(0);
-        updateMneeBalance();
+        void updateMneeBalance();
         setMneeHistoryRefreshKey((k) => k + 1);
       }
     } catch (err) {
@@ -547,7 +547,7 @@ export const BsvWallet = () => {
   const refreshUtxos = async ({ showLoad = false, notifyIfUnchanged = false } = {}) => {
     if (isRefreshing) return;
     setIsRefreshing(true);
-    showLoad && setIsProcessing(true);
+    if (showLoad) setIsProcessing(true);
     // Snapshot before: BSV in satoshis (not USD, so a rate tick is not "a change").
     const before = {
       sats: Math.round(bsvBalance * 100_000_000),
@@ -571,24 +571,24 @@ export const BsvWallet = () => {
         updateMneeBalance(),
         getAndSetAccountAndBsv21s(),
       ]);
-      loadLocks && loadLocks();
+      void loadLocks();
       const unchanged =
         sats === before.sats && mnee !== undefined && mnee === before.mnee && bsv21Signature(tokens) === before.tokens;
       if (notifyIfUnchanged && synced && unchanged) {
         addSnackbar('Balances are up to date. Incoming transactions can take one confirmation to appear.', 'info');
       }
     } finally {
-      showLoad && setIsProcessing(false);
+      if (showLoad) setIsProcessing(false);
       setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
     if (!identityAddress || isSyncing) return;
-    getAndSetBsvBalance();
+    void getAndSetBsvBalance();
     // Auto-unlock: attempt to unlock matured coins via CWI
     if (!unlockAttempted && lockData?.unlockable) {
-      (async () => {
+      void (async () => {
         const res = await unlockBsv.execute(apiContext, {});
         setUnlockAttempted(true);
         if (res.txid) {
@@ -612,7 +612,7 @@ export const BsvWallet = () => {
   };
 
   const handleCopyToClipboard = () => {
-    navigator.clipboard.writeText(receiveAddress).then(() => {
+    void navigator.clipboard.writeText(receiveAddress).then(() => {
       addSnackbar('Copied!', 'success');
       setCopiedAddress(true);
       setTimeout(() => setCopiedAddress(false), 2000);
@@ -620,7 +620,7 @@ export const BsvWallet = () => {
   };
 
   const copyAddress = (address: string) => {
-    navigator.clipboard.writeText(address).then(() => {
+    void navigator.clipboard.writeText(address).then(() => {
       addSnackbar('Copied!', 'success');
     });
   };
@@ -628,7 +628,7 @@ export const BsvWallet = () => {
   const setPrimaryAddress = (address: string) => {
     const { account, selectedAccount } = chromeStorageService.getCurrentAccountObject();
     if (account && selectedAccount) {
-      chromeStorageService.updateNested('accounts', {
+      void chromeStorageService.updateNested('accounts', {
         [selectedAccount]: { primaryAddress: address } as unknown as Account,
       });
     }
@@ -720,44 +720,46 @@ export const BsvWallet = () => {
       icon: MNEE_ICON_URL,
       lineItems,
       total: `$${mneeTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 })} MNEE`,
-      onConfirm: async () => {
-        setSendConfirmation(null);
-        setIsProcessing(true);
+      onConfirm: () => {
+        void (async () => {
+          setSendConfirmation(null);
+          setIsProcessing(true);
 
-        try {
-          const { account: acctForSend } = chromeStorageService.getCurrentAccountObject();
-          const sendCount = (acctForSend?.settings?.maxKeyIndex ?? 4) + 1;
+          try {
+            const { account: acctForSend } = chromeStorageService.getCurrentAccountObject();
+            const sendCount = (acctForSend?.settings?.maxKeyIndex ?? 4) + 1;
 
-          addSnackbar('Transaction initiated. Processing...', 'info');
+            addSnackbar('Transaction initiated. Processing...', 'info');
 
-          const res = await sendMnee.execute(apiContext, {
-            recipients: mneeRecipients.map((r) => ({ address: r.address, amount: r.amount as number })),
-            derivations: mneeKeyDerivations(0, sendCount),
-          });
+            const res = await sendMnee.execute(apiContext, {
+              recipients: mneeRecipients.map((r) => ({ address: r.address, amount: r.amount as number })),
+              derivations: mneeKeyDerivations(0, sendCount),
+            });
 
-          if (res.error) {
-            addSnackbar(`Transaction failed: ${res.error}`, 'error');
+            if (res.error) {
+              addSnackbar(`Transaction failed: ${res.error}`, 'error');
+              setIsProcessing(false);
+              return;
+            }
+
+            resetMneeRecipients();
+            setMneeBalance((prev) => Math.max(0, prev - mneeTotal));
+            updateMneeBalance().catch((err) => console.error('[handleSendMNEE] reconcile refresh failed:', err));
+            setMneeHistoryRefreshKey((k) => k + 1);
+            setPageState('main');
+            addSnackbar('Transaction Successful!', 'success');
+          } catch (error: unknown) {
+            console.error('MNEE transfer error:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes('status: 423')) {
+              addSnackbar('The sending or receiving address may be frozen. Please contact support.', 'error');
+            } else {
+              addSnackbar(getErrorMessage(errorMessage) || 'Transfer failed. Please try again.', 'error');
+            }
+          } finally {
             setIsProcessing(false);
-            return;
           }
-
-          resetMneeRecipients();
-          setMneeBalance((prev) => Math.max(0, prev - mneeTotal));
-          updateMneeBalance().catch((err) => console.error('[handleSendMNEE] reconcile refresh failed:', err));
-          setMneeHistoryRefreshKey((k) => k + 1);
-          setPageState('main');
-          addSnackbar('Transaction Successful!', 'success');
-        } catch (error: unknown) {
-          console.error('MNEE transfer error:', error);
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          if (errorMessage.includes('status: 423')) {
-            addSnackbar('The sending or receiving address may be frozen. Please contact support.', 'error');
-          } else {
-            addSnackbar(getErrorMessage(errorMessage) || 'Transfer failed. Please try again.', 'error');
-          }
-        } finally {
-          setIsProcessing(false);
-        }
+        })();
       },
     });
   };
@@ -815,42 +817,44 @@ export const BsvWallet = () => {
       icon: bsvCoin,
       lineItems,
       total: `${formatNumberWithCommasAndDecimals(totalSats / BSV_DECIMAL_CONVERSION, 8)} BSV`,
-      onConfirm: async () => {
-        setSendConfirmation(null);
-        setIsProcessing(true);
+      onConfirm: () => {
+        void (async () => {
+          setSendConfirmation(null);
+          setIsProcessing(true);
 
-        let sendRes;
-        if (isSendAllBsv) {
-          const r = sendRecipients[0];
-          const destination = r.address ?? r.paymail ?? '';
-          // OPL-4696: cancel OrdLock listings before send-all / BSV sweep (fail soft).
-          try {
-            await cancelOwnedOrdLockListings(apiContext, {
-              force: true,
-              sessionKey: 'bsv-send-all',
+          let sendRes;
+          if (isSendAllBsv) {
+            const r = sendRecipients[0];
+            const destination = r.address ?? r.paymail ?? '';
+            // OPL-4696: cancel OrdLock listings before send-all / BSV sweep (fail soft).
+            try {
+              await cancelOwnedOrdLockListings(apiContext, {
+                force: true,
+                sessionKey: 'bsv-send-all',
+              });
+            } catch (err) {
+              console.warn('[BsvWallet] OrdLock auto-cancel before sendAll failed', err);
+            }
+            sendRes = await sendAllBsv.execute(apiContext, {
+              destination,
             });
-          } catch (err) {
-            console.warn('[BsvWallet] OrdLock auto-cancel before sendAll failed', err);
+          } else {
+            sendRes = await sendBsv.execute(apiContext, { requests: sendRecipients });
           }
-          sendRes = await sendAllBsv.execute(apiContext, {
-            destination,
-          });
-        } else {
-          sendRes = await sendBsv.execute(apiContext, { requests: sendRecipients });
-        }
 
-        if (!sendRes.txid || sendRes.error) {
-          addSnackbar(getErrorMessage(sendRes.error), 'error');
-          setIsProcessing(false);
-          return;
-        }
+          if (!sendRes.txid || sendRes.error) {
+            addSnackbar(getErrorMessage(sendRes.error), 'error');
+            setIsProcessing(false);
+            return;
+          }
 
-        setBsvBalance((prev) => Math.max(0, prev - totalSats / BSV_DECIMAL_CONVERSION));
-        refreshUtxos().catch((err) => console.error('[handleSendBsv] reconcile refresh failed:', err));
-        resetSendState();
-        setBsvHistoryRefreshKey((k) => k + 1);
-        setPageState('main');
-        addSnackbar('Transaction Successful!', 'success');
+          setBsvBalance((prev) => Math.max(0, prev - totalSats / BSV_DECIMAL_CONVERSION));
+          refreshUtxos().catch((err) => console.error('[handleSendBsv] reconcile refresh failed:', err));
+          resetSendState();
+          setBsvHistoryRefreshKey((k) => k + 1);
+          setPageState('main');
+          addSnackbar('Transaction Successful!', 'success');
+        })();
       },
     });
   };
@@ -944,7 +948,7 @@ export const BsvWallet = () => {
   // Fetch deposit addresses when entering receive view and sync selected index to primaryAddress
   useEffect(() => {
     if (pageState === 'receive') {
-      fetchDepositAddresses().then(() => {
+      void fetchDepositAddresses().then(() => {
         // Honor the persisted primaryAddress instead of defaulting to index 0
         const { account: acct } = chromeStorageService.getCurrentAccountObject();
         const primary = acct?.primaryAddress;
@@ -977,7 +981,7 @@ export const BsvWallet = () => {
           whileTap={{ scale: 0.9 }}
           onClick={() => {
             setPageState('main');
-            getAndSetBsvBalance();
+            void getAndSetBsvBalance();
           }}
           className="flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0 border-0 outline-none cursor-pointer"
           style={{ background: '#17191E' }}
@@ -1404,18 +1408,11 @@ export const BsvWallet = () => {
     ...(services.bsv21
       ? bsv21s
           .filter((t) => t.all.confirmed > 0n)
-          .map(
-            (t) =>
-              ({
-                kind: 'bsv21' as const,
-                token: t,
-                icon: t.icon
-                  ? isUri(t.icon)
-                    ? t.icon
-                    : `${ONESAT_MAINNET_CONTENT_URL}/${t.icon}`
-                  : GENERIC_TOKEN_ICON,
-              }) as PickableAsset,
-          )
+          .map((t) => ({
+            kind: 'bsv21' as const,
+            token: t,
+            icon: t.icon ? (isUri(t.icon) ? t.icon : `${ONESAT_MAINNET_CONTENT_URL}/${t.icon}`) : GENERIC_TOKEN_ICON,
+          }))
       : []),
   ];
 
@@ -1962,7 +1959,7 @@ export const BsvWallet = () => {
         <ManageTokens
           onBack={() => {
             setManageFavorites(false);
-            getAndSetAccountAndBsv21s();
+            void getAndSetAccountAndBsv21s();
             setRandomKey(Math.random());
           }}
           tokens={bsv21s}
@@ -2077,7 +2074,7 @@ export const BsvWallet = () => {
                     style={{ color: theme.color.global.gray }}
                     title="Copy legacy address"
                     onClick={() => {
-                      navigator.clipboard
+                      void navigator.clipboard
                         .writeText(legacyMneeAddress)
                         .then(() => addSnackbar('Legacy address copied!', 'success'));
                     }}

@@ -3,8 +3,6 @@
  * Defined locally to remove the external dependency.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 export type PubKeys = {
   bsvPubKey: string;
   ordPubKey: string;

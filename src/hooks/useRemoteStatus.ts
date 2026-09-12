@@ -91,7 +91,7 @@ export const useRemoteStatus = (wallet: WalletInterface | undefined, remotes: st
   }, [wallet, remotes, knownUrls]);
 
   useEffect(() => {
-    fetchAll();
+    void fetchAll();
   }, [fetchAll]);
 
   return { statusMap, loading, refetch: fetchAll };

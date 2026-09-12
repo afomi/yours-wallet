@@ -41,13 +41,14 @@ function withOriginator(wallet: WalletInterface, originator: string): WalletInte
       const value = Reflect.get(target, prop, receiver);
       if (typeof value !== 'function') return value;
       return function (...args: unknown[]) {
+        const fn = value as (...fnArgs: unknown[]) => unknown;
         if (args.length < 2 || args[1] === undefined) {
-          return (value as Function).call(target, args[0], originator);
+          return fn.call(target, args[0], originator);
         }
-        return (value as Function).apply(target, args);
+        return fn.apply(target, args);
       };
     },
-  }) as WalletInterface;
+  });
 }
 
 /**
@@ -179,7 +180,7 @@ export const openAccountStorageForBackup = async (
  */
 export const initWallet = async (
   chromeStorageService: ChromeStorageService,
-  options?: InitWalletOptions,
+  _options?: InitWalletOptions,
 ): Promise<AccountContext> => {
   // Ensure storage is loaded
   await chromeStorageService.getAndSetStorage();
@@ -276,7 +277,7 @@ export const initWallet = async (
     const primaryAddress = syncContext.addressManager.getPrimaryAddress();
     if (primaryAddress) {
       const identityAddress = keys.identityAddress;
-      chromeStorageService.updateNested('accounts', {
+      void chromeStorageService.updateNested('accounts', {
         [identityAddress]: { primaryAddress } as unknown as Account,
       });
     }

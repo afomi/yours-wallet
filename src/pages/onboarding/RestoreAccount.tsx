@@ -21,7 +21,6 @@ import { sleep } from '../../utils/sleep';
 import { useServiceContext } from '../../hooks/useServiceContext';
 import { SupportedWalletImports } from '../../services/types/keys.types';
 import { SettingsPage } from '../Settings';
-import { YoursIcon } from '../../components/YoursIcon';
 import { saveAccountDataToChromeStorage } from '../../utils/chromeStorageHelpers';
 
 export type RestoreAccountProps = {
@@ -56,7 +55,7 @@ export const RestoreAccount = ({ onNavigateBack, newWallet = false }: RestoreAcc
   const hiddenYoursFileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    newWallet && hideMenu();
+    if (newWallet) hideMenu();
     return () => {
       showMenu();
     };
@@ -140,7 +139,8 @@ export const RestoreAccount = ({ onNavigateBack, newWallet = false }: RestoreAcc
   const handleWalletSelection = (wallet?: SupportedWalletImports) => {
     setImportWallet(wallet);
     if (wallet === 'wif') {
-      newWallet ? navigate('/import-wallet') : onNavigateBack('import-wif');
+      if (newWallet) navigate('/import-wallet');
+      else onNavigateBack('import-wif');
       return;
     }
     if (newWallet && wallet === 'master') {
@@ -169,7 +169,6 @@ export const RestoreAccount = ({ onNavigateBack, newWallet = false }: RestoreAcc
   };
 
   const accentLeft = theme.color.component.primaryButtonLeftGradient;
-  const accentRight = theme.color.component.primaryButtonRightGradient;
   const contrast = theme.color.global.contrast;
   const gray = theme.color.global.gray;
   const row = theme.color.global.row;

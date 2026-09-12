@@ -76,7 +76,7 @@ export const ProviderPicker = ({
   const [customUrl, setCustomUrl] = useState('');
   const [customError, setCustomError] = useState('');
   const [customChecking, setCustomChecking] = useState(false);
-  const [customLive, setCustomLive] = useState<boolean | null>(null);
+  const [, setCustomLive] = useState<boolean | null>(null);
   const [statusMap, setStatusMap] = useState<Record<string, RemoteStatusResult>>({});
   const [fetching, setFetching] = useState(true);
 
@@ -100,7 +100,7 @@ export const ProviderPicker = ({
       setStatusMap(Object.fromEntries(results));
       setFetching(false);
     };
-    fetchAll();
+    void fetchAll();
   }, [wallet]);
 
   /** BRC-103 liveness check via AuthFetch. The handshake to /.well-known/auth

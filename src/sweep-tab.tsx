@@ -24,61 +24,63 @@ function SweepTab() {
   useEffect(() => {
     configureServices(SERVICES_BASE_URL);
 
-    chrome.storage.local.get(null, async (storage) => {
-      try {
-        // Check for an externally-provided WIF (e.g. from Sweep Private Key in Tools)
-        const sessionData = await chrome.storage.session.get('sweepExternalWif');
-        const externalWif = sessionData.sweepExternalWif as string | undefined;
-        if (externalWif) {
-          // Clear it immediately so it doesn't persist
-          chrome.storage.session.remove('sweepExternalWif');
-          setKeys({ payPk: externalWif, ordPk: externalWif });
-          setLoading(false);
-          return;
+    chrome.storage.local.get(null, (storage) => {
+      void (async () => {
+        try {
+          // Check for an externally-provided WIF (e.g. from Sweep Private Key in Tools)
+          const sessionData = await chrome.storage.session.get('sweepExternalWif');
+          const externalWif = sessionData.sweepExternalWif as string | undefined;
+          if (externalWif) {
+            // Clear it immediately so it doesn't persist
+            void chrome.storage.session.remove('sweepExternalWif');
+            setKeys({ payPk: externalWif, ordPk: externalWif });
+            setLoading(false);
+            return;
+          }
+
+          // Otherwise, load legacy keys from the current account
+          const { accounts, selectedAccount, isLocked } = storage;
+
+          // passKey lives in session storage (memory-only), not local storage
+          const session = await chrome.storage.session.get('passKey');
+          const passKey = session.passKey as string | undefined;
+
+          if (isLocked || !passKey) {
+            setError('Wallet is locked. Please unlock your wallet and try again.');
+            setLoading(false);
+            return;
+          }
+
+          if (!accounts || !selectedAccount) {
+            setError('No account found.');
+            setLoading(false);
+            return;
+          }
+
+          const account = accounts[selectedAccount];
+          if (!account?.encryptedKeys) {
+            setError('No encrypted keys found.');
+            setLoading(false);
+            return;
+          }
+
+          const decrypted = JSON.parse(await decrypt(account.encryptedKeys, passKey));
+          if (!decrypted.walletWif && !decrypted.ordWif) {
+            setError('No legacy keys found in this account.');
+            setLoading(false);
+            return;
+          }
+
+          setKeys({
+            payPk: decrypted.walletWif,
+            ordPk: decrypted.ordWif,
+            identityPk: decrypted.identityWif || undefined,
+          });
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Failed to load keys');
         }
-
-        // Otherwise, load legacy keys from the current account
-        const { accounts, selectedAccount, isLocked } = storage;
-
-        // passKey lives in session storage (memory-only), not local storage
-        const session = await chrome.storage.session.get('passKey');
-        const passKey = session.passKey as string | undefined;
-
-        if (isLocked || !passKey) {
-          setError('Wallet is locked. Please unlock your wallet and try again.');
-          setLoading(false);
-          return;
-        }
-
-        if (!accounts || !selectedAccount) {
-          setError('No account found.');
-          setLoading(false);
-          return;
-        }
-
-        const account = accounts[selectedAccount];
-        if (!account?.encryptedKeys) {
-          setError('No encrypted keys found.');
-          setLoading(false);
-          return;
-        }
-
-        const decrypted = JSON.parse(await decrypt(account.encryptedKeys, passKey));
-        if (!decrypted.walletWif && !decrypted.ordWif) {
-          setError('No legacy keys found in this account.');
-          setLoading(false);
-          return;
-        }
-
-        setKeys({
-          payPk: decrypted.walletWif,
-          ordPk: decrypted.ordWif,
-          identityPk: decrypted.identityWif || undefined,
-        });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load keys');
-      }
-      setLoading(false);
+        setLoading(false);
+      })();
     });
   }, []);
 
@@ -87,7 +89,7 @@ function SweepTab() {
   useEffect(() => {
     if (loading || error || !keys) return;
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const services = new OneSatServices('main');
         const apiContext = createContext(wallet, { chain: 'main', services, isBaseWallet: false });

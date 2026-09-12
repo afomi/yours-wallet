@@ -175,7 +175,7 @@ export const AppsAndTools = () => {
   const navigate = useNavigate();
   const menuContext = useBottomMenu();
   const { query } = menuContext;
-  const { keysService, chromeStorageService, apiContext } = useServiceContext();
+  const { keysService, apiContext } = useServiceContext();
   const { bsvAddress, ordAddress, identityAddress } = keysService;
   const [isProcessing, setIsProcessing] = useState(false);
   const [page, setPage] = useState<AppsPage>(query === 'pending-locks' ? 'unlock' : 'main');
@@ -205,7 +205,7 @@ export const AppsAndTools = () => {
     }
     // Store the WIF temporarily, then open the sweep tab which reads and clears it
     chrome.storage.session.set({ sweepExternalWif: wifKey.trim() }, () => {
-      chrome.tabs.create({ url: chrome.runtime.getURL('sweep-tab.html') });
+      void chrome.tabs.create({ url: chrome.runtime.getURL('sweep-tab.html') });
     });
     setWifKey('');
     setPage('main');
@@ -245,7 +245,7 @@ export const AppsAndTools = () => {
 
   useEffect(() => {
     if (page === 'unlock') {
-      getLockData();
+      void getLockData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
@@ -322,7 +322,7 @@ export const AppsAndTools = () => {
       console.error('Unlock error:', error);
     } finally {
       setIsProcessing(false);
-      getLockData();
+      void getLockData();
     }
   };
 
@@ -714,7 +714,7 @@ export const AppsAndTools = () => {
               type="primary"
               label={isProcessing ? 'Sending...' : 'Confirm'}
               onClick={() => {
-                handleSubmit(pendingSupportAmount!);
+                void handleSubmit(pendingSupportAmount!);
                 setPendingSupportAmount(null);
               }}
               loading={isProcessing}

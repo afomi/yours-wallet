@@ -35,7 +35,7 @@ export interface ServiceContextProps {
   isLocked: boolean;
   isReady: boolean;
   setIsLocked: (isLocked: boolean) => void;
-  lockWallet: () => Promise<void>;
+  lockWallet: () => void | Promise<void>;
   /** API context for calling 1Sat actions - uses ChromeCWI to communicate with service worker */
   apiContext: OneSatContext;
   /** Legacy wallet interface. Optional because current BRC-100 setups don't wire it. */

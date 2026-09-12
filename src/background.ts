@@ -119,6 +119,8 @@ const runInitializeWallet = async (): Promise<WalletInterface | null> => {
   }
 
   console.log('[background] initializeWallet: calling initWallet...');
+  // Sequential init: we drop any previous context above, then assign the new one.
+  // eslint-disable-next-line require-atomic-updates
   accountContext = await initWallet(chromeStorageService, {
     onTransactionBroadcasted: (txid: string) => {
       console.log('[background] Transaction broadcasted:', txid);
@@ -151,9 +153,7 @@ const runInitializeWallet = async (): Promise<WalletInterface | null> => {
       if (hasPending) {
         console.log('[background] initializeWallet: Found pending restore data, importing...');
         try {
-          const storage = accountContext.storage as unknown as Parameters<
-            typeof WalletBackupService.importPendingWalletData
-          >[0];
+          const storage = accountContext.storage;
           if (storage) {
             await WalletBackupService.importPendingWalletData(storage, currentIdentityKey, (event) => {
               console.log('[background] PendingRestore:', event.message);
@@ -342,7 +342,7 @@ const closeDappPopup = (): void => {
   selfClosedWindowIds.add(popupWindowId);
   removeWindow(popupWindowId);
   popupWindowId = undefined;
-  chrome.storage.local.remove('popupWindowId');
+  void chrome.storage.local.remove('popupWindowId');
 };
 
 /**
@@ -404,17 +404,19 @@ const getInactivityLimit = () => chromeStorageService.getLockTimeout();
 
 // Periodic inactivity check — destroys decrypted keys when session expires.
 // This runs even when the popup is closed, ensuring keys don't linger in the service worker.
-chrome.alarms.create('inactivity-lock', { periodInMinutes: 1 });
-chrome.alarms.onAlarm.addListener(async (alarm) => {
+void chrome.alarms.create('inactivity-lock', { periodInMinutes: 1 });
+chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== 'inactivity-lock' || !accountContext) return;
-  await chromeStorageService.getAndSetStorage();
-  const { lastActiveTime } = chromeStorageService.getCurrentAccountObject();
-  if (!lastActiveTime || Date.now() - Number(lastActiveTime) >= getInactivityLimit()) {
-    console.log('[background] Inactivity detected — wallet gone, clearing passKey');
-    dropWalletContext('inactivity');
-    await chromeStorageService.clearPassKey();
-    await chromeStorageService.update({ isLocked: true });
-  }
+  void (async () => {
+    await chromeStorageService.getAndSetStorage();
+    const { lastActiveTime } = chromeStorageService.getCurrentAccountObject();
+    if (!lastActiveTime || Date.now() - Number(lastActiveTime) >= getInactivityLimit()) {
+      console.log('[background] Inactivity detected — wallet gone, clearing passKey');
+      dropWalletContext('inactivity');
+      await chromeStorageService.clearPassKey();
+      await chromeStorageService.update({ isLocked: true });
+    }
+  })();
 });
 
 // Forward declarations for the prompt-window launchers (defined inside the
@@ -528,7 +530,7 @@ if (isInServiceWorker) {
         console.log('[background] switchAccount: storage loaded, initializing wallet');
         await initializeWallet();
         console.log('[background] switchAccount: wallet initialized successfully');
-        return (accountContext as AccountContext | null)?.wallet ?? null;
+        return accountContext?.wallet ?? null;
       } catch (error) {
         console.error('[background] switchAccount: failed to initialize wallet:', error);
         return null;
@@ -556,7 +558,7 @@ if (isInServiceWorker) {
       (window) => {
         popupWindowId = window?.id;
         if (popupWindowId) {
-          chrome.storage.local.set({
+          void chrome.storage.local.set({
             popupWindowId,
           });
         }
@@ -582,7 +584,7 @@ if (isInServiceWorker) {
 
       if (existingPopup) {
         // Focus existing popup and push the new prompt into it
-        chrome.windows.update(existingPopup.id!, { focused: true });
+        void chrome.windows.update(existingPopup.id!, { focused: true });
         popupWindowId = existingPopup.id;
         notifyPromptWindow(kind, requestID);
         return;
@@ -610,7 +612,7 @@ if (isInServiceWorker) {
               notifyPromptWindow(kind, requestID);
             })
             .catch(() => {
-              chrome.storage.local.remove('popupWindowId');
+              void chrome.storage.local.remove('popupWindowId');
               createNewPopup(kind, requestID);
             });
         } else {
@@ -637,7 +639,6 @@ if (isInServiceWorker) {
     showPrompt: (requestID) => showPromptUi('oneSatPermission', requestID),
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   chrome.runtime.onMessage.addListener((message: any, sender, sendResponse: CallbackResponse) => {
     console.log(
       '[background] Received message:',
@@ -734,7 +735,8 @@ if (isInServiceWorker) {
             });
           return true;
         case YoursEventName.SIGNED_OUT:
-          return signOut();
+          void signOut();
+          return true;
         // CWI auth check
         case CWIEventName.IS_AUTHENTICATED:
           return processCWIIsAuthenticated(sendResponse);
@@ -800,7 +802,7 @@ if (isInServiceWorker) {
             removeWindow(windowId);
             if (windowId === popupWindowId) {
               popupWindowId = undefined;
-              chrome.storage.local.remove('popupWindowId');
+              void chrome.storage.local.remove('popupWindowId');
             }
           }
           sendResponse({ type: 'CLOSE_PROMPT_WINDOW', success: true });
@@ -808,19 +810,19 @@ if (isInServiceWorker) {
         }
         // Internal UI requests (no external domain, direct from popup)
         case YoursEventName.GET_BALANCE:
-          processGetBalanceRequest(sendResponse);
+          void processGetBalanceRequest(sendResponse);
           return true;
         case YoursEventName.GET_PUB_KEYS:
-          processGetPubKeysRequest(sendResponse);
+          void processGetPubKeysRequest(sendResponse);
           return true;
         case YoursEventName.GET_LEGACY_ADDRESSES:
-          processGetLegacyAddressesRequest(sendResponse);
+          void processGetLegacyAddressesRequest(sendResponse);
           return true;
         case YoursEventName.GET_RECEIVE_ADDRESS:
-          processGetReceiveAddressRequest(sendResponse);
+          void processGetReceiveAddressRequest(sendResponse);
           return true;
         case YoursEventName.GET_SOCIAL_PROFILE:
-          processGetSocialProfileRequest(sendResponse);
+          void processGetSocialProfileRequest(sendResponse);
           return true;
         case 'WALLET_LOCKED': {
           // Gone immediately so lock never waits on hung AuthFetch/storage close.
@@ -841,7 +843,7 @@ if (isInServiceWorker) {
             return true;
           }
           // Reinitialize wallet after user unlocks with password
-          chromeStorageService.getAndSetStorage().then(() => {
+          void chromeStorageService.getAndSetStorage().then(() => {
             initializeWallet()
               .then(async (wallet) => {
                 // Mark wallet as unlocked in storage BEFORE resolving waiters,
@@ -875,28 +877,28 @@ if (isInServiceWorker) {
           });
           return true;
         case 'MASTER_BACKUP':
-          processMasterBackup(sendResponse);
+          void processMasterBackup(sendResponse);
           return true;
         case 'MASTER_RESTORE':
-          processMasterRestore(message, sendResponse);
+          void processMasterRestore(message, sendResponse);
           return true;
         case 'STORAGE_GET_INFO':
-          processStorageGetInfo(sendResponse);
+          void processStorageGetInfo(sendResponse);
           return true;
         case 'STORAGE_SYNC_BACKUPS':
-          processStorageSyncBackups(sendResponse);
+          void processStorageSyncBackups(sendResponse);
           return true;
         case 'STORAGE_REPAIR_SYNC':
-          processStorageRepairSync(sendResponse);
+          void processStorageRepairSync(sendResponse);
           return true;
         case 'STORAGE_SET_ACTIVE_STORAGE':
-          processStorageSetActiveStorage(message.target, sendResponse);
+          void processStorageSetActiveStorage(message.target, sendResponse);
           return true;
         case 'STORAGE_ADD_REMOTE':
-          processStorageAddRemote(message.url, sendResponse);
+          void processStorageAddRemote(message.url, sendResponse);
           return true;
         case 'STORAGE_REMOVE_REMOTE':
-          processStorageRemoveRemote(message.url, sendResponse);
+          void processStorageRemoveRemote(message.url, sendResponse);
           return true;
         case 'UPDATE_FEE_RATE': {
           const rate = message.feeRate;
@@ -918,19 +920,19 @@ if (isInServiceWorker) {
           return true;
         }
         case 'PERMISSIONS_LIST_ALL':
-          processPermissionsListAll(sendResponse);
+          void processPermissionsListAll(sendResponse);
           return true;
         case 'PERMISSIONS_QUERY_SPENT':
-          processPermissionsQuerySpent(message, sendResponse);
+          void processPermissionsQuerySpent(message, sendResponse);
           return true;
         case 'PERMISSIONS_REVOKE_ONE':
-          processPermissionsRevokeOne(message, sendResponse);
+          void processPermissionsRevokeOne(message, sendResponse);
           return true;
         case 'PERMISSIONS_REVOKE_ALL':
-          processPermissionsRevokeAll(message, sendResponse);
+          void processPermissionsRevokeAll(message, sendResponse);
           return true;
         case 'GET_DEPOSIT_ADDRESSES': {
-          startupInitPromise.then(() => {
+          void startupInitPromise.then(() => {
             if (!accountContext) {
               sendResponse({ type: 'GET_DEPOSIT_ADDRESSES', success: false, error: 'Wallet not initialized' });
               return;
@@ -955,7 +957,7 @@ if (isInServiceWorker) {
             return true;
           }
           (globalThis as any).__generatingAddress = true;
-          startupInitPromise.then(async () => {
+          void startupInitPromise.then(async () => {
             try {
               if (!accountContext) {
                 sendResponse({ type: 'GENERATE_NEW_ADDRESS', success: false, error: 'Wallet not initialized' });
@@ -1154,7 +1156,7 @@ if (isInServiceWorker) {
       return;
     }
     const { storage, remoteStorage } = accountContext;
-    (async () => {
+    void (async () => {
       try {
         const stores = storage.getStores();
         const settings = storage.getSettings();
@@ -1683,27 +1685,25 @@ if (isInServiceWorker) {
       });
       return;
     }
-    accountContext.baseWallet
-      .balance()
-      .then((satoshis) => {
-        sendResponse({
-          type: YoursEventName.GET_BALANCE,
-          success: true,
-          data: satoshis,
-        });
-      })
-      .catch((error) => {
-        sendResponse({
-          type: YoursEventName.GET_BALANCE,
-          success: false,
-          error: error instanceof Error ? error.message : JSON.stringify(error),
-        });
+    try {
+      const satoshis = await accountContext.baseWallet.balance();
+      sendResponse({
+        type: YoursEventName.GET_BALANCE,
+        success: true,
+        data: satoshis,
       });
+    } catch (error) {
+      sendResponse({
+        type: YoursEventName.GET_BALANCE,
+        success: false,
+        error: error instanceof Error ? error.message : JSON.stringify(error),
+      });
+    }
   };
 
   const processGetPubKeysRequest = (sendResponse: CallbackResponse) => {
     try {
-      chromeStorageService.getAndSetStorage().then(() => {
+      void chromeStorageService.getAndSetStorage().then(() => {
         const { account } = chromeStorageService.getCurrentAccountObject();
         if (!account) throw Error('No account found!');
         sendResponse({
@@ -1723,7 +1723,7 @@ if (isInServiceWorker) {
 
   const processGetLegacyAddressesRequest = (sendResponse: CallbackResponse) => {
     try {
-      chromeStorageService.getAndSetStorage().then(() => {
+      void chromeStorageService.getAndSetStorage().then(() => {
         const { account } = chromeStorageService.getCurrentAccountObject();
         if (!account) throw Error('No account found!');
         sendResponse({
@@ -1780,7 +1780,7 @@ if (isInServiceWorker) {
 
   const processGetSocialProfileRequest = (sendResponse: CallbackResponse) => {
     try {
-      chromeStorageService.getAndSetStorage().then(() => {
+      void chromeStorageService.getAndSetStorage().then(() => {
         const { account } = chromeStorageService.getCurrentAccountObject();
         if (!account) throw Error('No account found!');
         const displayName = account.settings?.socialProfile?.displayName ?? 'Anonymous';
@@ -1908,7 +1908,7 @@ if (isInServiceWorker) {
           const opened = await openAccountStorageForBackup(chromeStorageService);
           // wallet-browser vs wallet-toolbox-client WalletStorageManager types differ at compile time only.
           return {
-            storage: opened.storage as unknown as import('@bsv/wallet-toolbox-client').WalletStorageManager,
+            storage: opened.storage,
             close: opened.close,
           };
         },
@@ -2723,7 +2723,7 @@ if (isInServiceWorker) {
       // queued in the meantime, it was sent to a dying window: reopen for it.
       if (closedWindowId === popupWindowId) {
         popupWindowId = undefined;
-        chromeStorageService.remove('popupWindowId');
+        void chromeStorageService.remove('popupWindowId');
       }
       const next = getNextPendingPrompt();
       if (next) showPromptUi(next.kind, next.requestID);
@@ -2759,7 +2759,7 @@ if (isInServiceWorker) {
       }
 
       popupWindowId = undefined;
-      chromeStorageService.remove('popupWindowId');
+      void chromeStorageService.remove('popupWindowId');
     }
   });
 }

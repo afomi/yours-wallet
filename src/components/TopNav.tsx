@@ -22,7 +22,7 @@ export const TopNav = () => {
   const accountObj = chromeStorageService.getCurrentAccountObject();
 
   const handleCopyToClipboard = (bsvAddress: string) => {
-    navigator.clipboard.writeText(bsvAddress).then(() => {
+    void navigator.clipboard.writeText(bsvAddress).then(() => {
       setCopiedAddress(bsvAddress);
       addSnackbar('Copied!', 'success');
       setTimeout(() => setCopiedAddress(null), 2000);
@@ -37,7 +37,7 @@ export const TopNav = () => {
     // the outgoing page did in the meantime (balance refreshes, lock checks,
     // auto-unlock) would run against the wrong account.
     setIsSwitchingAccount(true);
-    wallet?.close?.();
+    void wallet?.close?.();
     try {
       await chromeStorageService.switchAccount(identityAddress);
     } catch (err) {

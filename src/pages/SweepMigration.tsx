@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PrivateKey } from '@bsv/sdk';
 import { prepareSweepInputs, sweepBsv, sweepOrdinals, sweepBsv21 } from '@1sat/actions';
 import { cancelOwnedOrdLockListings } from '../utils/cancelOrdLockListings';
-import { scanAddress, type ScannedAssets, type EnrichedOrdinal, type TokenBalance } from '../sweep/scanner';
+import { scanAddress, type ScannedAssets } from '../sweep/scanner';
 import type { IndexedOutput } from '@1sat/types';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -17,22 +17,8 @@ import { BottomMenuContext } from '../contexts/BottomMenuContext';
 import { decrypt } from '../utils/crypto';
 import type { Keys } from '../utils/keys';
 import type { SweepStep, SweepSelection, SweepTxResult, AddressScanStatus } from '../sweep/types';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Shield,
-  Lock,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  ArrowRight,
-  ExternalLink,
-  Loader2,
-  Coins,
-  Image,
-  Check,
-  X,
-  ChevronRight,
-} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Shield, Lock, AlertTriangle, CheckCircle, ExternalLink, Loader2, Coins, Image, Check, X } from 'lucide-react';
 
 const EXPLORER_BASE = 'https://bananablocks.com/tx/';
 
@@ -199,7 +185,7 @@ export const SweepMigration = () => {
   }, [legacyKeys, apiContext.services]);
 
   useEffect(() => {
-    if (step === 'scanning') runScan();
+    if (step === 'scanning') void runScan();
   }, [step, runScan]);
 
   // Toggle helpers
@@ -207,7 +193,8 @@ export const SweepMigration = () => {
   const toggleOrdinal = (outpoint: string) =>
     setSelection((s) => {
       const next = new Set(s.selectedOrdinals);
-      next.has(outpoint) ? next.delete(outpoint) : next.add(outpoint);
+      if (next.has(outpoint)) next.delete(outpoint);
+      else next.add(outpoint);
       return { ...s, selectedOrdinals: next };
     });
   const selectAllOrdinals = () =>
@@ -216,7 +203,8 @@ export const SweepMigration = () => {
   const toggleBsv21 = (tokenId: string) =>
     setSelection((s) => {
       const next = new Set(s.selectedBsv21TokenIds);
-      next.has(tokenId) ? next.delete(tokenId) : next.add(tokenId);
+      if (next.has(tokenId)) next.delete(tokenId);
+      else next.add(tokenId);
       return { ...s, selectedBsv21TokenIds: next };
     });
 
@@ -324,11 +312,6 @@ export const SweepMigration = () => {
         settings: { ...account.settings, [flag]: true },
       },
     });
-  };
-
-  const handleSkip = async () => {
-    await persistSweepFlag('sweepCompleted');
-    navigate('/bsv-wallet');
   };
 
   const handleDone = async () => {
@@ -455,7 +438,7 @@ export const SweepMigration = () => {
                 label="Launch Tool"
                 onClick={() => {
                   void persistSweepFlag('sweepStarted');
-                  chrome.tabs.create({ url: chrome.runtime.getURL('sweep-tab.html') });
+                  void chrome.tabs.create({ url: chrome.runtime.getURL('sweep-tab.html') });
                 }}
               />
               <Button theme={theme} type="secondary-outline" label="Back" onClick={() => navigate(-1)} />
@@ -553,7 +536,7 @@ export const SweepMigration = () => {
             </motion.p>
 
             <motion.div variants={staggerContainer} className="w-full flex flex-col gap-2 mb-6">
-              {scanStatuses.map((s, i) => {
+              {scanStatuses.map((s) => {
                 const isDone = s.status === 'done';
                 const isError = s.status === 'error';
                 const isScanning = s.status === 'scanning';

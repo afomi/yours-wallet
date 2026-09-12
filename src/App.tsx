@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { useContext, useEffect } from 'react';
 import { MemoryRouter as Router, Route, Routes } from 'react-router-dom';
 import { Show } from './components/Show';
@@ -40,7 +39,7 @@ export const App = () => {
     return () => port.disconnect();
   }, []);
 
-  const handleUnlock = async () => {
+  const handleUnlock = () => {
     setIsLocked(false);
     menuContext?.handleSelect('bsv');
   };

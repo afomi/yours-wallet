@@ -1,4 +1,4 @@
-import { LockRequest, SendBsv, TransactionFormat } from '../services/types/provider.types';
+import { LockRequest, TransactionFormat } from '../services/types/provider.types';
 import { Script, Transaction, Utils } from '@bsv/sdk';
 import {
   Bsv21Indexer,
@@ -67,7 +67,7 @@ export const parseRawTransaction = async (tx: Transaction, apiContext: OneSatCon
   const emptyOwners = new Set<string>();
   // `services` is typed against a nested copy of @1sat/client, so we cast when
   // passing to indexers that come from the top-level @1sat/wallet-browser.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const svc = services as any;
   const indexers: Indexer[] = [
     new FundIndexer(emptyOwners, network),
@@ -86,6 +86,8 @@ export const parseRawTransaction = async (tx: Transaction, apiContext: OneSatCon
       try {
         const result = await indexer.parse(txo);
         if (!result) continue;
+        // Local to this loop iteration; the await above cannot alias `txo`.
+        // eslint-disable-next-line require-atomic-updates
         txo.data[indexer.tag] = {
           data: result.data,
           tags: result.tags,
@@ -94,7 +96,7 @@ export const parseRawTransaction = async (tx: Transaction, apiContext: OneSatCon
         if (result.owner && !txo.owner) txo.owner = result.owner;
         if (result.basket && !txo.basket) txo.basket = result.basket;
       } catch (err) {
-        console.warn(`Indexer ${indexer.tag} failed on ${txo.outpoint.toString()}:`, err);
+        console.warn(`Indexer ${indexer.tag} failed on ${JSON.stringify(txo.outpoint)}:`, err);
       }
     }
   };
@@ -254,6 +256,6 @@ export const convertLockReqToSendBsvReq = (lockData: LockRequest[]) => {
     return {
       satoshis: d.sats,
       script: lockingScript.toHex(),
-    } as SendBsv;
+    };
   });
 };

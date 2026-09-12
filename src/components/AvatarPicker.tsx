@@ -67,7 +67,7 @@ export const AvatarPicker = ({ theme, apiContext, onSelectExisting, onUploadNew,
   );
 
   useEffect(() => {
-    loadPage(true);
+    void loadPage(true);
   }, [loadPage]);
 
   // Infinite scroll — load more when near bottom
@@ -75,7 +75,7 @@ export const AvatarPicker = ({ theme, apiContext, onSelectExisting, onUploadNew,
     const el = scrollRef.current;
     if (!el || loadingMore || !hasMore) return;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 60) {
-      loadPage(false);
+      void loadPage(false);
     }
   }, [loadPage, loadingMore, hasMore]);
 

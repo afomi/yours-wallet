@@ -41,11 +41,11 @@ export const Bsv21TokensList = (props: Bsv21TokensListProps) => {
       const rate = await fetchExchangeRate(apiContext.chain, apiContext.wocApiKey);
       setExchangeRate(rate);
     };
-    loadExchangeRate();
+    void loadExchangeRate();
   }, [apiContext]);
 
   useEffect(() => {
-    const loadSavedTokens = async () => {
+    const loadSavedTokens = () => {
       if (!tokensProp.length) return;
       const { account } = chromeStorageService.getCurrentAccountObject();
       if (!account) return;
@@ -77,7 +77,7 @@ export const Bsv21TokensList = (props: Bsv21TokensListProps) => {
     if (!account) return;
     const key: keyof ChromeStorageObject = 'accounts';
 
-    const favoriteTokens = reorderedTokens.map((t) => t.id).filter((t) => t) as string[];
+    const favoriteTokens = reorderedTokens.map((t) => t.id).filter((t) => t);
 
     const update: Partial<ChromeStorageObject['accounts']> = {
       [account.addresses.identityAddress]: {

@@ -1,7 +1,5 @@
 import { HOSTED_YOURS_IMAGE } from './constants';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /**
  * Send a message to the service worker and get a response.
  * Returns a Promise that resolves with the response.
@@ -17,7 +15,7 @@ export const sendMessageAsync = <T = any>(message: any): Promise<T> => {
         }
       });
     } catch (error) {
-      reject(error);
+      reject(error instanceof Error ? error : new Error(String(error)));
     }
   });
 };
