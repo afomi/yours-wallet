@@ -11,7 +11,6 @@ import {
   Plus,
   RefreshCw,
   Server,
-  Trash2,
   Wifi,
   WifiOff,
 } from 'lucide-react';
@@ -132,11 +131,7 @@ export const StorageStatus = ({ onBack }: StorageStatusProps) => {
   const remotesKey = remotes.join(',');
   const stableRemotes = useMemo(() => remotes, [remotesKey]);
   const stableKnownUrls = useMemo(() => KNOWN_PROVIDERS.map((p) => p.url), []);
-  const { statusMap, loading: statusLoading } = useRemoteStatus(
-    apiContext.wallet as any,
-    stableRemotes,
-    stableKnownUrls,
-  );
+  const { statusMap, loading: statusLoading } = useRemoteStatus(apiContext.wallet, stableRemotes, stableKnownUrls);
   const [busy, setBusy] = useState(false);
   const [busyAction, setBusyAction] = useState<'active' | 'remove' | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -180,7 +175,7 @@ export const StorageStatus = ({ onBack }: StorageStatusProps) => {
   };
 
   useEffect(() => {
-    fetchInfo();
+    void fetchInfo();
     fetchExchangeRate(apiContext.chain, apiContext.wocApiKey)
       .then(setExchangeRate)
       .catch(() => {});
@@ -223,7 +218,7 @@ export const StorageStatus = ({ onBack }: StorageStatusProps) => {
       setSyncing(false);
       if (response?.success) {
         addSnackbar('Sync complete', 'success');
-        fetchInfo();
+        void fetchInfo();
       } else if (response?.error) {
         addSnackbar(response.error, 'error');
       }
@@ -240,7 +235,7 @@ export const StorageStatus = ({ onBack }: StorageStatusProps) => {
       setRepairing(false);
       if (response?.success) {
         addSnackbar('Repair complete — remote is active', 'success');
-        fetchInfo();
+        void fetchInfo();
       } else if (response?.error) {
         addSnackbar(response.error, 'error');
       }
@@ -645,7 +640,7 @@ export const StorageStatus = ({ onBack }: StorageStatusProps) => {
             </div>
             <button
               onClick={() =>
-                setSubView({ type: 'detail', url: localIsActive ? '' : activeRemote!, isLocal: localIsActive })
+                setSubView({ type: 'detail', url: localIsActive ? '' : activeRemote, isLocal: localIsActive })
               }
               className="flex items-center justify-center w-6 h-6 rounded border-0 outline-none cursor-pointer"
               style={{ background: 'rgba(255,255,255,0.06)' }}
@@ -663,7 +658,7 @@ export const StorageStatus = ({ onBack }: StorageStatusProps) => {
           )}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold" style={{ color: contrast }}>
-              {localIsActive ? 'This Browser' : hostFromUrl(activeRemote!)}
+              {localIsActive ? 'This Browser' : hostFromUrl(activeRemote)}
             </p>
             <p className="text-[9px]" style={{ color: gray }}>
               {localIsActive
@@ -946,7 +941,7 @@ export const StorageStatus = ({ onBack }: StorageStatusProps) => {
       {showProviderPicker && (
         <ProviderPicker
           theme={theme}
-          wallet={apiContext.wallet as any}
+          wallet={apiContext.wallet}
           existingRemotes={remotes}
           exchangeRate={exchangeRate}
           onSelectProvider={handleAddRemote}

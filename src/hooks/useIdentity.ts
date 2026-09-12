@@ -108,7 +108,7 @@ export const useIdentity = (apiContext: OneSatContext, chromeStorageService?: Ch
           },
         },
       };
-      chromeStorageService.updateNested(key, update);
+      void chromeStorageService.updateNested(key, update);
     },
     [chromeStorageService],
   );
@@ -144,7 +144,7 @@ export const useIdentity = (apiContext: OneSatContext, chromeStorageService?: Ch
   }, [apiContext, cacheToStorage]);
 
   useEffect(() => {
-    loadIdentity();
+    void loadIdentity();
   }, [loadIdentity]);
 
   /**

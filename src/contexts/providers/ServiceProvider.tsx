@@ -41,7 +41,7 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (services?.chromeStorageService) {
       const timestamp = Date.now();
       const twentyMinutesAgo = timestamp - 20 * 60 * 1000;
-      services.chromeStorageService.update({ lastActiveTime: isLocked ? twentyMinutesAgo : timestamp, isLocked });
+      void services.chromeStorageService.update({ lastActiveTime: isLocked ? twentyMinutesAgo : timestamp, isLocked });
       // Notify background to destroy decrypted keys only on actual lock transitions,
       // not on initial render (where isLocked starts as true before checkLockState runs)
       if (isLocked && prevIsLockedRef.current === false) {
@@ -80,7 +80,7 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({ children })
         console.error('Error initializing services:', error);
       }
     };
-    initServices();
+    void initServices();
     return () => {
       // Legacy cleanup — `walletImporting` was used by the old SyncBanner to show
       // an "Initializing..." state. Banner is gone, but clearing stale values in
@@ -93,7 +93,7 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({ children })
   // Address/message sync runs in the service worker on unlock (initWallet).
   // Do not also run it here — concurrent popup+SW sync races storage.
 
-  const lockWallet = useCallback(async () => {
+  const lockWallet = useCallback(() => {
     if (!isReady) return;
     setIsLocked(true);
   }, [isReady]);
@@ -126,9 +126,11 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     };
 
-    checkLockState();
+    void checkLockState();
 
-    const interval = setInterval(checkLockState, 5000);
+    const interval = setInterval(() => {
+      void checkLockState();
+    }, 5000);
 
     return () => {
       clearInterval(interval);

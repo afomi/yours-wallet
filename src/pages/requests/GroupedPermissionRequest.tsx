@@ -53,7 +53,7 @@ export const GroupedPermissionRequestPage = (props: GroupedPermissionRequestProp
     return granted;
   };
 
-  const handleGrant = async () => {
+  const handleGrant = () => {
     setIsProcessing(true);
     try {
       sendMessage({
@@ -68,7 +68,7 @@ export const GroupedPermissionRequestPage = (props: GroupedPermissionRequestProp
     }
   };
 
-  const handleDeny = async () => {
+  const handleDeny = () => {
     setIsProcessing(true);
     sendMessage({
       action: 'GROUPED_PERMISSION_RESPONSE',

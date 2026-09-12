@@ -225,6 +225,8 @@ main().catch((err) => {
   try {
     const meta = loadMeta();
     saveMeta({ ...meta, streak: 0 });
-  } catch {}
+  } catch {
+    // Ignore meta reset failures so the process still exits non-zero.
+  }
   process.exit(1);
 });

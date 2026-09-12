@@ -52,10 +52,10 @@ export const FlexWrapper = ({ children, style }: FlexWrapperProps) => (
       ...style,
     }}
     onMouseEnter={(e) => {
-      (e.currentTarget as HTMLDivElement).style.transform = 'scale(1.02)';
+      e.currentTarget.style.transform = 'scale(1.02)';
     }}
     onMouseLeave={(e) => {
-      (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
+      e.currentTarget.style.transform = 'scale(1)';
     }}
   >
     {children}

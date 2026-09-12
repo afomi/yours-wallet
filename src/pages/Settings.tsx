@@ -350,16 +350,6 @@ export const Settings = () => {
     }
   };
 
-  const handleSaveProfileIntent = () => {
-    setDecisionType('save-profile');
-    setSpeedBumpMessage(
-      identity.isPublished
-        ? 'Updating your profile will broadcast a transaction. A small fee will be deducted from your wallet.'
-        : 'This will create your on-chain identity and save your profile. A small fee will be deducted from your wallet.',
-    );
-    setShowSpeedBump(true);
-  };
-
   const handleSaveProfile = async () => {
     const res = await identity.saveProfile({
       name: enteredName,
@@ -375,14 +365,14 @@ export const Settings = () => {
 
   const handleCopyBapId = () => {
     if (!identity.bapId) return;
-    navigator.clipboard.writeText(identity.bapId);
+    void navigator.clipboard.writeText(identity.bapId);
     setCopiedBapId(true);
     setTimeout(() => setCopiedBapId(false), 2000);
   };
 
   const handleCopyIdentityKey = () => {
     if (!identityPubKey) return;
-    navigator.clipboard.writeText(identityPubKey);
+    void navigator.clipboard.writeText(identityPubKey);
     setCopiedIdentityKey(true);
     setTimeout(() => setCopiedIdentityKey(false), 2000);
   };
@@ -486,7 +476,7 @@ export const Settings = () => {
 
   const signOut = async () => {
     await chromeStorageService.clear();
-    wallet?.close?.();
+    void wallet?.close?.();
     setDecisionType(undefined);
     sendMessage({
       action: YoursEventName.SIGNED_OUT,
@@ -504,7 +494,7 @@ export const Settings = () => {
 
   const handleSpeedBumpConfirm = async (password?: string) => {
     if (decisionType === 'sign-out') {
-      signOut();
+      void signOut();
     }
 
     if (decisionType === 'delete-account') {
@@ -519,27 +509,27 @@ export const Settings = () => {
         addSnackbar('Invalid password!', 'error');
         return;
       }
-      handleMasterBackup();
+      void handleMasterBackup();
       setDecisionType(undefined);
       setShowSpeedBump(false);
     }
     if (decisionType === 'export-keys' && password) {
-      exportKeys(password);
+      void exportKeys(password);
       setDecisionType(undefined);
       setShowSpeedBump(false);
     }
     if (decisionType === 'export-keys-qr-code' && password) {
-      exportKeysAsQrCode(password);
+      void exportKeysAsQrCode(password);
       setDecisionType(undefined);
       setShowSpeedBump(false);
     }
     if (decisionType === 'inscribe-avatar') {
-      handleConfirmAvatarInscribe();
+      void handleConfirmAvatarInscribe();
       setDecisionType(undefined);
       setShowSpeedBump(false);
     }
     if (decisionType === 'save-profile') {
-      handleSaveProfile();
+      void handleSaveProfile();
       setDecisionType(undefined);
       setShowSpeedBump(false);
     }
@@ -640,8 +630,8 @@ export const Settings = () => {
     setBackupAccounts([]);
   };
 
-  const handleLockWallet = async () => {
-    lockWallet();
+  const handleLockWallet = () => {
+    void lockWallet();
     handleSelect('bsv');
   };
 
@@ -760,7 +750,7 @@ export const Settings = () => {
         style={{ color: theme.color.global.gray }}
         title="Click to copy build info"
         onClick={() => {
-          navigator.clipboard.writeText(buildInfo);
+          void navigator.clipboard.writeText(buildInfo);
           addSnackbar('Build info copied', 'success');
         }}
       >

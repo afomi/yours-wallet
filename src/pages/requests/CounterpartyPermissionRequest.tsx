@@ -37,7 +37,7 @@ export const CounterpartyPermissionRequestPage = (props: CounterpartyPermissionR
     return { protocols: checkedProtocols };
   };
 
-  const handleGrant = async () => {
+  const handleGrant = () => {
     setIsProcessing(true);
     try {
       sendMessage({
@@ -52,7 +52,7 @@ export const CounterpartyPermissionRequestPage = (props: CounterpartyPermissionR
     }
   };
 
-  const handleDeny = async () => {
+  const handleDeny = () => {
     setIsProcessing(true);
     sendMessage({
       action: 'COUNTERPARTY_PERMISSION_RESPONSE',

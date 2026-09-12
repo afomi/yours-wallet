@@ -110,7 +110,7 @@ export const SendBsv21View = ({ token, onBack }: SendBsv21ViewProps) => {
 
   const handleCopyId = () => {
     if (!token.info.id) return;
-    navigator.clipboard.writeText(token.info.id);
+    void navigator.clipboard.writeText(token.info.id);
     setCopied(true);
     addSnackbar('Token ID copied', 'success');
     setTimeout(() => setCopied(false), 2000);
@@ -176,36 +176,38 @@ export const SendBsv21View = ({ token, onBack }: SendBsv21ViewProps) => {
       icon: tokenIcon,
       lineItems,
       total: `${showAmount(total, token.info.dec)} ${tokenName}`,
-      onConfirm: async () => {
-        setSendConfirmation(null);
-        setIsProcessing(true);
+      onConfirm: () => {
+        void (async () => {
+          setSendConfirmation(null);
+          setIsProcessing(true);
 
-        let sendRes: Awaited<ReturnType<typeof sendBsv21.execute>>;
-        try {
-          sendRes = await sendBsv21.execute(apiContext, {
-            tokenId: token.info.id!,
-            recipients: sendRecipients.map((r) => ({
-              amount: r.amount,
-              destination: { address: r.address },
-            })),
-          });
-        } catch (error) {
-          console.error('[SendBsv21View] sendBsv21.execute threw:', error);
-          setIsProcessing(false);
-          addSnackbar(getErrorMessage(undefined), 'error');
-          return;
-        }
+          let sendRes: Awaited<ReturnType<typeof sendBsv21.execute>>;
+          try {
+            sendRes = await sendBsv21.execute(apiContext, {
+              tokenId: token.info.id,
+              recipients: sendRecipients.map((r) => ({
+                amount: r.amount,
+                destination: { address: r.address },
+              })),
+            });
+          } catch (error) {
+            console.error('[SendBsv21View] sendBsv21.execute threw:', error);
+            setIsProcessing(false);
+            addSnackbar(getErrorMessage(undefined), 'error');
+            return;
+          }
 
-        if (!sendRes.txid || sendRes.error) {
-          console.error('[SendBsv21View] sendBsv21 error:', sendRes.error);
-          setIsProcessing(false);
-          addSnackbar(getErrorMessage(sendRes.error), 'error');
-          return;
-        }
+          if (!sendRes.txid || sendRes.error) {
+            console.error('[SendBsv21View] sendBsv21 error:', sendRes.error);
+            setIsProcessing(false);
+            addSnackbar(getErrorMessage(sendRes.error), 'error');
+            return;
+          }
 
-        sentAtomicRef.current = total;
-        setSuccessTxId(sendRes.txid);
-        addSnackbar('Tokens Sent!', 'success');
+          sentAtomicRef.current = total;
+          setSuccessTxId(sendRes.txid);
+          addSnackbar('Tokens Sent!', 'success');
+        })();
       },
     });
   };
@@ -237,7 +239,7 @@ export const SendBsv21View = ({ token, onBack }: SendBsv21ViewProps) => {
               whileTap={{ scale: 0.9 }}
               onClick={() => {
                 resetSendState();
-                onBack();
+                void onBack();
               }}
               className="flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0 outline-none border-none cursor-pointer"
               style={{ backgroundColor: '#17191E' }}
@@ -423,7 +425,7 @@ export const SendBsv21View = ({ token, onBack }: SendBsv21ViewProps) => {
               <CoinHistory
                 filter={{
                   type: 'bsv21',
-                  tokenId: token.info.id!,
+                  tokenId: token.info.id,
                   decimals: token.info.dec,
                   symbol: token.info.sym,
                 }}

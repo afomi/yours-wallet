@@ -27,7 +27,7 @@ export enum CustomListenerName {
 export type RequestParams = {
   appName?: string;
   appIcon?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   data?: any;
   domain?: string;
   isAuthorized?: boolean;
@@ -46,7 +46,7 @@ export type RequestEvent = {
 export type ResponseEventDetail = {
   type: YoursEventName | string;
   success: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   data?: any;
   error?: string | undefined | boolean;
 };

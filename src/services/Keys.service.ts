@@ -111,7 +111,7 @@ export class KeysService {
 
     const keys = getKeys(mnemonic, walletDerivation, ordDerivation, identityDerivation);
     if (mnemonic) {
-      this.sweepLegacy(keys);
+      void this.sweepLegacy(keys);
     }
     const encryptedKeys = await encrypt(JSON.stringify(keys), passKey);
     await this.storeEncryptedKeys(passKey, salt, keys, encryptedKeys);
@@ -223,7 +223,7 @@ export class KeysService {
       });
     } catch (error) {
       console.error('Error in retrieveKeys:', error instanceof Error ? error.message : 'Unknown error');
-      throw new Error('Failed to retrieve keys');
+      throw new Error('Failed to retrieve keys', { cause: error });
     }
   };
 

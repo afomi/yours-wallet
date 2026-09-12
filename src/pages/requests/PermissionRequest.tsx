@@ -66,7 +66,7 @@ export const PermissionRequestPage = (props: PermissionRequestProps) => {
     hideMenu();
   }, [handleSelect, hideMenu]);
 
-  const handleGrant = async () => {
+  const handleGrant = () => {
     setIsProcessing(true);
     try {
       sendMessage({
@@ -82,7 +82,7 @@ export const PermissionRequestPage = (props: PermissionRequestProps) => {
     }
   };
 
-  const handleDeny = async () => {
+  const handleDeny = () => {
     setIsProcessing(true);
     sendMessage({
       action: 'PERMISSION_RESPONSE',

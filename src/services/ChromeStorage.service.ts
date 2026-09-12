@@ -1,10 +1,9 @@
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const chrome: any;
 
 import { Utils } from '@bsv/sdk';
 import { NetWork } from './types/provider.types';
 import { YoursEventName } from '../inject';
-import { sendMessage, sendMessageAsync } from '../utils/chromeHelpers';
+import { sendMessageAsync } from '../utils/chromeHelpers';
 import {
   CHROME_STORAGE_OBJECT_VERSION,
   WALLET_DATA_MIGRATION_VERSION,
@@ -48,7 +47,7 @@ export class ChromeStorageService {
     return new Promise<void>((resolve, reject) => {
       chrome.storage.local.set(obj, async () => {
         if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
+          reject(new Error(chrome.runtime.lastError.message));
         } else {
           await this.getAndSetStorage();
           resolve();
@@ -61,7 +60,7 @@ export class ChromeStorageService {
     return new Promise<Partial<ChromeStorageObject>>((resolve, reject) => {
       chrome.storage.local.get(keyOrKeys, (result: Partial<ChromeStorageObject>) => {
         if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
+          reject(new Error(chrome.runtime.lastError.message));
         } else {
           resolve(result);
         }
@@ -73,7 +72,7 @@ export class ChromeStorageService {
     return new Promise<void>((resolve, reject) => {
       chrome.storage.local.remove(keyOrKeys, () => {
         if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
+          reject(new Error(chrome.runtime.lastError.message));
         } else {
           resolve();
         }
@@ -85,7 +84,7 @@ export class ChromeStorageService {
     return new Promise<void>((resolve, reject) => {
       chrome.storage.local.clear(() => {
         if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
+          reject(new Error(chrome.runtime.lastError.message));
         } else {
           resolve();
         }
@@ -364,26 +363,26 @@ export class ChromeStorageService {
   ): Promise<void> => {
     try {
       const result = await this.get([key]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const existingObject = (result[key] ?? {}) as Record<string, any>;
       const mergedObject = deepMerge(existingObject, update);
       const data: Partial<ChromeStorageObject> = { [key]: mergedObject as ChromeStorageObject[K] };
       await this.set(data);
     } catch (error) {
-      throw new Error(`Failed to set nested object value: ${error}`);
+      throw new Error(`Failed to set nested object value: ${error}`, { cause: error });
     }
   };
 
   removeNested = async <K extends keyof ChromeStorageObject>(key: K, nestedKey: string): Promise<void> => {
     try {
       const result = await this.get([key]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const existingObject = (result[key] ?? {}) as Record<string, any>;
       delete existingObject[nestedKey];
       const data: Partial<ChromeStorageObject> = { [key]: existingObject as ChromeStorageObject[K] };
       await this.set(data);
     } catch (error) {
-      throw new Error(`Failed to remove nested object value: ${error}`);
+      throw new Error(`Failed to remove nested object value: ${error}`, { cause: error });
     }
   };
 
@@ -412,9 +411,9 @@ export class ChromeStorageService {
           ? deepMerge((existing[key] as Record<string, unknown> | undefined) ?? {}, value)
           : value;
       }
-      await this.set(data as Partial<ChromeStorageObject>);
+      await this.set(data);
     } catch (error) {
-      throw new Error(`Failed to update storage: ${error}`);
+      throw new Error(`Failed to update storage: ${error}`, { cause: error });
     }
   };
 

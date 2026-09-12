@@ -16,8 +16,11 @@ export async function fetchExchangeRate(chain: string, wocApiKey?: string): Prom
     if (!response.ok) throw new Error(`Failed to fetch: ${response.statusText}`);
     const data = await response.json();
     const rate = Number(data.rate.toFixed(2));
-    exchangeRateCache = { rate, timestamp: Date.now() };
-    return rate;
+    const nextCache = { rate, timestamp: Date.now() };
+    // Module-level cache written after fetch; not a concurrent alias of the same binding.
+    // eslint-disable-next-line require-atomic-updates
+    exchangeRateCache = nextCache;
+    return nextCache.rate;
   } catch {
     return exchangeRateCache?.rate ?? 0;
   }

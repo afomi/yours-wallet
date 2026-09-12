@@ -204,7 +204,7 @@ export class WalletBackupService {
     const originalSelectedAccount = initialChromeStorage?.selectedAccount || '';
 
     const zipChunks: Uint8Array[] = [];
-    let zipError: Error | null = null;
+    let zipError: unknown = null;
 
     const zip = new Zip((err, data) => {
       if (err) {
@@ -290,7 +290,9 @@ export class WalletBackupService {
           }));
         }
 
-        if (zipError) throw zipError;
+        if (zipError) {
+          throw zipError instanceof Error ? zipError : new Error('Zip failed');
+        }
 
         accountManifestEntries.push({
           identityKey: acct.identityKey,
@@ -347,7 +349,9 @@ export class WalletBackupService {
     manifestDeflate.push(new TextEncoder().encode(JSON.stringify(manifest, null, 2)), true);
 
     zip.end();
-    if (zipError) throw zipError;
+    if (zipError) {
+      throw zipError instanceof Error ? zipError : new Error('Zip failed');
+    }
 
     onProgress({ stage: 'complete', message: 'Backup complete!', totalAccounts: accounts.length });
 
@@ -568,7 +572,7 @@ export class WalletBackupService {
     await new Promise<void>((resolve, reject) => {
       const request = store.put(data, identityKey);
       request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
+      request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
     });
     db.close();
   }
@@ -581,7 +585,7 @@ export class WalletBackupService {
       const result = await new Promise<AccountPendingRestore | undefined>((resolve, reject) => {
         const request = store.get(identityKey);
         request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
       });
       db.close();
       return result ?? null;
@@ -598,7 +602,7 @@ export class WalletBackupService {
       await new Promise<void>((resolve, reject) => {
         const request = store.delete(identityKey);
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
       });
       db.close();
     } catch {
@@ -617,7 +621,7 @@ export class WalletBackupService {
       await new Promise<void>((resolve, reject) => {
         const request = store.clear();
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
       });
       db.close();
     } catch {
@@ -628,7 +632,7 @@ export class WalletBackupService {
   private static openPendingRestoreDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(PENDING_RESTORE_DB, 1);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
       request.onsuccess = () => resolve(request.result);
       request.onupgradeneeded = () => {
         const db = request.result;

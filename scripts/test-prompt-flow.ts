@@ -11,7 +11,7 @@
  * window closes, no request keys in chrome.storage.local, main popup clean,
  * dApp reconnect does not re-prompt.
  */
-import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import puppeteer, { type Browser, type Page, type WebWorker } from 'puppeteer';

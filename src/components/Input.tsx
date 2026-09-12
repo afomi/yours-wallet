@@ -13,7 +13,7 @@ const shakeKeyframes = {
 };
 
 export const Input = (props: InputProps) => {
-  const { shake = 'false', theme, className, style, ...allProps } = props;
+  const { shake = 'false', theme, className: _className, style, ...allProps } = props;
   const controls = useAnimation();
 
   const preventScroll = (e: React.WheelEvent<HTMLInputElement>) => {
@@ -25,7 +25,7 @@ export const Input = (props: InputProps) => {
   };
 
   if (shake === 'true') {
-    controls.start(shakeKeyframes);
+    void controls.start(shakeKeyframes);
   }
 
   return (

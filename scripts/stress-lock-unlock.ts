@@ -87,7 +87,7 @@ async function main() {
     });
   };
 
-  let worker = await getWorker(browser);
+  const worker = await getWorker(browser);
   attachSwLogs(worker);
 
   const extensionId = new URL(worker.url()).hostname;

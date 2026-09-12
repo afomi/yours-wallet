@@ -16,13 +16,13 @@ export const useActivityDetector = (
   const lastWriteRef = useRef(0);
 
   useEffect(() => {
-    const handleActivity = async () => {
+    const handleActivity = () => {
       if (isWalletLocked || !isReady) return;
 
       const timestamp = Date.now();
       if (timestamp - lastWriteRef.current < ACTIVITY_WRITE_INTERVAL_MS) return;
       lastWriteRef.current = timestamp;
-      await chromeStorageService.update({ lastActiveTime: timestamp });
+      void chromeStorageService.update({ lastActiveTime: timestamp });
     };
 
     document.addEventListener('mousemove', handleActivity);
